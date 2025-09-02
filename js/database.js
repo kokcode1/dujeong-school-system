@@ -3,9 +3,14 @@
 
 class DatabaseManager {
     constructor() {
+        this.cache = {}; // 로컬 캐시
+        this.updateFirebaseStatus();
+    }
+    
+    // Firebase 상태 업데이트
+    updateFirebaseStatus() {
         this.isFirebaseEnabled = window.isFirebaseEnabled || false;
         this.db = window.db || null;
-        this.cache = {}; // 로컬 캐시
     }
 
     // 컬렉션별 참조 생성
@@ -154,6 +159,7 @@ class DatabaseManager {
 
     // 연결 상태 확인
     isConnected() {
+        this.updateFirebaseStatus(); // 최신 상태로 업데이트
         return this.isFirebaseEnabled;
     }
 

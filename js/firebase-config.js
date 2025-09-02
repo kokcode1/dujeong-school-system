@@ -21,14 +21,14 @@ try {
         isFirebaseEnabled = true;
         console.log("✅ Firebase 연결됨 - 실시간 데이터베이스 사용");
         
-        // Firestore 오프라인 지원 활성화
-        db.enablePersistence().catch((err) => {
-            if (err.code == 'failed-precondition') {
-                console.log("⚠️ 여러 탭이 열려 있어 오프라인 지원이 제한됨");
-            } else if (err.code == 'unimplemented') {
-                console.log("⚠️ 브라우저가 오프라인 지원을 하지 않음");
-            }
-        });
+        // Firestore 오프라인 지원 활성화 (경고 방지를 위해 주석 처리)
+        // db.enablePersistence().catch((err) => {
+        //     if (err.code == 'failed-precondition') {
+        //         console.log("⚠️ 여러 탭이 열려 있어 오프라인 지원이 제한됨");
+        //     } else if (err.code == 'unimplemented') {
+        //         console.log("⚠️ 브라우저가 오프라인 지원을 하지 않음");
+        //     }
+        // });
     } else {
         console.log("⚡ Firebase 미설정 - localStorage 사용 (데모 모드)");
         console.log("🔥 실제 사용을 위해 Firebase 프로젝트를 설정하세요:");
