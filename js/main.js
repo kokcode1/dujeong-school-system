@@ -63,31 +63,26 @@ document.addEventListener('DOMContentLoaded', function() {
         // Firebase 데이터 로드
         await loadFirebaseData();
         
-        // 저장된 하루 세션 확인
-        if (checkSavedSession()) {
-            showUserSection();
-            setupRealtimeListeners(); // 실시간 리스너 설정
-            updateAdminStats();
-            return;
-        }
+        // 자동 로그인 비활성화 - 항상 로그인 화면 표시
         
-        // 기존 세션도 확인 (호환성을 위해)
-        const savedUser = localStorage.getItem('currentUser');
-        if (savedUser) {
-            currentUser = JSON.parse(savedUser);
-            showUserSection();
-            setupRealtimeListeners(); // 실시간 리스너 설정
-            updateAdminStats();
-            return;
-        }
+        // 기존 저장된 세션 정리
+        localStorage.removeItem('teacherSession');
+        localStorage.removeItem('currentUser');
         
-        // 새로운 로그인 폼 이벤트 리스너 추가
-        const gradeClassForm = document.getElementById('gradeClassForm');
+        // 학년별 반 개수 설정
+        const classCountByGrade = {
+            1: 7, // 1학년 7반까지
+            2: 6, // 2학년 6반까지  
+            3: 7, // 3학년 7반까지
+            4: 6, // 4학년 6반까지
+            5: 5, // 5학년 5반까지
+            6: 6  // 6학년 6반까지
+        };
+        window.classCountByGrade = classCountByGrade;
+        
+        // 새로운 로그인 버튼 이벤트 리스너 추가
+        setupGradeClassButtons();
         const adminForm = document.getElementById('adminForm');
-        
-        if (gradeClassForm) {
-            gradeClassForm.addEventListener('submit', handleGradeClassLogin);
-        }
         
         if (adminForm) {
             adminForm.addEventListener('submit', handleAdminLogin);
@@ -175,36 +170,58 @@ function setupRealtimeListeners() {
     console.log('✅ 실시간 데이터 동기화 활성화');
 }
 
-// 학년반 로그인 처리
-function handleGradeClassLogin(e) {
-    e.preventDefault();
+// 학년/반 버튼 설정
+function setupGradeClassButtons() {
+    // 학년 버튼 이벤트 리스너
+    document.querySelectorAll('.grade-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            const grade = e.target.dataset.grade;
+            showClassSelection(grade);
+        });
+    });
+}
+
+// 학년 선택 표시
+function showGradeSelection() {
+    document.querySelector('.grade-selection').style.display = 'block';
+    document.querySelector('.class-selection').style.display = 'none';
+}
+
+// 반 선택 표시
+function showClassSelection(grade) {
+    const classCount = window.classCountByGrade[grade];
     
-    const grade = document.getElementById('grade').value;
-    const classNum = document.getElementById('class').value;
+    // 제목 업데이트
+    document.getElementById('selectedGradeTitle').textContent = `${grade}학년 반을 선택해주세요`;
     
-    if (!grade || !classNum) {
-        alert('학년과 반을 모두 선택해주세요.');
-        return;
+    // 반 버튼 생성
+    const classButtons = document.getElementById('classButtons');
+    classButtons.innerHTML = '';
+    
+    for (let i = 1; i <= classCount; i++) {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'class-btn';
+        btn.textContent = `${i}반`;
+        btn.addEventListener('click', () => {
+            loginAsTeacher(grade, i);
+        });
+        classButtons.appendChild(btn);
     }
     
-    // 1-6학년, 1-10반 범위 체크
-    if (grade < 1 || grade > 6 || classNum < 1 || classNum > 10) {
-        alert('올바른 학년(1-6)과 반(1-10)을 입력해주세요.');
-        return;
-    }
-    
+    // UI 전환
+    document.querySelector('.grade-selection').style.display = 'none';
+    document.querySelector('.class-selection').style.display = 'block';
+}
+
+// 선생님으로 로그인
+function loginAsTeacher(grade, classNum) {
     // 선생님 정보 생성
     currentUser = generateTeacherFromGradeClass(grade, classNum);
     
-    // 하루 세션 저장
-    const session = {
-        user: currentUser,
-        loginDate: new Date().toISOString()
-    };
-    localStorage.setItem('teacherSession', JSON.stringify(session));
-    
-    // 기존 방식과 호환성을 위해 currentUser도 저장
-    localStorage.setItem('currentUser', JSON.stringify(currentUser));
+    // 세션 저장하지 않음 (자동 로그인 방지)
+    // localStorage.setItem('teacherSession', JSON.stringify(session));
+    // localStorage.setItem('currentUser', JSON.stringify(currentUser));
     
     showUserSection();
 }
