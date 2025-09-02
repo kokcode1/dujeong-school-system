@@ -129,55 +129,64 @@ function openAdminPage(page) {
     }
 }
 
-// 컴퓨터실 신청 폼
+// 컴퓨터실 신청 폼 - 시간표 형태
 function showComputerRoomForm() {
     const content = document.querySelector('main');
+    const today = new Date().toISOString().split('T')[0];
+    
     content.innerHTML = `
         <button onclick="goBack()" class="back-btn">← 돌아가기</button>
-        <div class="request-form">
-            <h2>컴퓨터실 사용 신청</h2>
-            <form id="computerRoomForm">
-                <div class="form-group">
-                    <label for="requestDate">신청일:</label>
-                    <input type="date" id="requestDate" name="requestDate" required>
+        <div class="schedule-container">
+            <h2 style="text-align: center; color: #2d3748; margin-bottom: 1.5rem; font-size: 1.75rem; font-weight: 600;">컴퓨터실 사용 신청</h2>
+            
+            <div class="date-selector">
+                <label for="scheduleDate">사용 예정일 선택:</label>
+                <input type="date" id="scheduleDate" value="${today}" min="${today}" onchange="updateSchedule()">
+            </div>
+            
+            <div class="schedule-legend">
+                <div class="legend-item">
+                    <div class="legend-color legend-available"></div>
+                    <span>예약 가능</span>
                 </div>
-                <div class="form-group">
-                    <label for="useDate">사용 예정일:</label>
-                    <input type="date" id="useDate" name="useDate" required>
+                <div class="legend-item">
+                    <div class="legend-color legend-occupied"></div>
+                    <span>예약됨</span>
                 </div>
-                <div class="form-group">
-                    <label for="useTime">사용 시간:</label>
-                    <select id="useTime" name="useTime" required>
-                        <option value="">선택하세요</option>
-                        <option value="1교시">1교시</option>
-                        <option value="2교시">2교시</option>
-                        <option value="3교시">3교시</option>
-                        <option value="4교시">4교시</option>
-                        <option value="5교시">5교시</option>
-                        <option value="6교시">6교시</option>
-                    </select>
+                <div class="legend-item">
+                    <div class="legend-color legend-mine"></div>
+                    <span>내 예약</span>
                 </div>
-                <div class="form-group">
-                    <label for="purpose">사용 목적:</label>
-                    <textarea id="purpose" name="purpose" rows="4" required></textarea>
+            </div>
+            
+            <div class="schedule-grid" id="scheduleGrid">
+                <!-- 시간표가 여기에 동적으로 생성됩니다 -->
+            </div>
+        </div>
+        
+        <!-- 예약 확인 모달 -->
+        <div id="reservationModal" class="reservation-modal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3 id="modalTitle">컴퓨터실 예약</h3>
+                    <p id="modalSubtitle">선택한 시간에 예약하시겠습니까?</p>
                 </div>
-                <button type="submit">신청하기</button>
-            </form>
+                <div class="modal-form">
+                    <div class="form-group">
+                        <label for="modalPurpose">사용 목적:</label>
+                        <textarea id="modalPurpose" rows="3" placeholder="사용 목적을 입력해주세요" style="width: 100%; padding: 0.75rem; border: 2px solid #e2e8f0; border-radius: 8px; font-family: inherit; resize: vertical;" required></textarea>
+                    </div>
+                </div>
+                <div class="modal-actions">
+                    <button class="modal-btn secondary" onclick="closeReservationModal()">취소</button>
+                    <button class="modal-btn primary" onclick="confirmReservation()">예약하기</button>
+                </div>
+            </div>
         </div>
     `;
     
-    document.getElementById('computerRoomForm').addEventListener('submit', function(e) {
-        e.preventDefault();
-        submitRequest('computerRoom', {
-            requestDate: document.getElementById('requestDate').value,
-            useDate: document.getElementById('useDate').value,
-            useTime: document.getElementById('useTime').value,
-            purpose: document.getElementById('purpose').value
-        });
-    });
-    
-    // 오늘 날짜로 기본값 설정
-    document.getElementById('requestDate').value = new Date().toISOString().split('T')[0];
+    // 초기 스케줄 로드
+    updateSchedule();
 }
 
 // 태블릿 정보 보기
@@ -505,6 +514,169 @@ function updateAdminStats() {
         if (todayEl) todayEl.textContent = todayProcessed;
         if (totalEl) totalEl.textContent = totalRequests;
     }
+}
+
+// 시간표 업데이트
+function updateSchedule() {
+    const selectedDate = document.getElementById('scheduleDate').value;
+    const scheduleGrid = document.getElementById('scheduleGrid');
+    
+    const timeSlots = [
+        { period: '1교시', time: '09:00-09:40' },
+        { period: '2교시', time: '09:50-10:30' },
+        { period: '3교시', time: '10:40-11:20' },
+        { period: '4교시', time: '11:30-12:10' },
+        { period: '5교시', time: '13:10-13:50' },
+        { period: '6교시', time: '14:00-14:40' }
+    ];
+    
+    let gridHTML = '';
+    
+    timeSlots.forEach(slot => {
+        const slotStatus = getSlotStatus(selectedDate, slot.period);
+        const statusClass = slotStatus.status;
+        const isClickable = statusClass === 'available' || statusClass === 'my-reservation';
+        const onClick = isClickable ? `onclick="handleSlotClick('${selectedDate}', '${slot.period}', '${slot.time}', '${statusClass}')"` : '';
+        
+        gridHTML += `
+            <div class="time-slot ${statusClass}" ${onClick}>
+                <h4>${slot.period}</h4>
+                <p>${slot.time}</p>
+                ${slotStatus.requester ? `<div style="position: absolute; bottom: 0.5rem; left: 50%; transform: translateX(-50%); font-size: 0.7rem; opacity: 0.7; z-index: 15;">${slotStatus.requester}</div>` : ''}
+            </div>
+        `;
+    });
+    
+    scheduleGrid.innerHTML = gridHTML;
+}
+
+// 시간대별 예약 상태 확인
+function getSlotStatus(date, period) {
+    const computerRoomRequests = requests.computerRoom || [];
+    
+    // 선택된 날짜와 시간에 해당하는 승인된 예약 찾기
+    const existingReservation = computerRoomRequests.find(req => 
+        req.useDate === date && 
+        req.useTime === period && 
+        req.status === 'approved'
+    );
+    
+    if (existingReservation) {
+        // 내 예약인지 확인
+        if (existingReservation.requester === currentUser.name) {
+            return { status: 'my-reservation', requester: existingReservation.requester };
+        } else {
+            return { status: 'occupied', requester: existingReservation.requester };
+        }
+    }
+    
+    // 대기중인 예약이 있는지 확인
+    const pendingReservation = computerRoomRequests.find(req => 
+        req.useDate === date && 
+        req.useTime === period && 
+        req.status === 'pending'
+    );
+    
+    if (pendingReservation) {
+        if (pendingReservation.requester === currentUser.name) {
+            return { status: 'my-reservation', requester: pendingReservation.requester };
+        } else {
+            return { status: 'occupied', requester: pendingReservation.requester };
+        }
+    }
+    
+    return { status: 'available' };
+}
+
+// 시간 슬롯 클릭 처리
+let selectedSlot = null;
+
+function handleSlotClick(date, period, time, currentStatus) {
+    if (currentStatus === 'my-reservation') {
+        // 내 예약 취소 확인
+        if (confirm(`${period} (${time}) 예약을 취소하시겠습니까?`)) {
+            cancelReservation(date, period);
+        }
+        return;
+    }
+    
+    // 새 예약
+    selectedSlot = { date, period, time };
+    
+    document.getElementById('modalTitle').textContent = `${period} 예약`;
+    document.getElementById('modalSubtitle').textContent = `${date} ${time}에 컴퓨터실을 예약하시겠습니까?`;
+    document.getElementById('modalPurpose').value = '';
+    
+    const modal = document.getElementById('reservationModal');
+    modal.classList.add('active');
+}
+
+// 예약 취소
+function cancelReservation(date, period) {
+    const computerRoomRequests = requests.computerRoom || [];
+    const reservationIndex = computerRoomRequests.findIndex(req => 
+        req.useDate === date && 
+        req.useTime === period && 
+        req.requester === currentUser.name
+    );
+    
+    if (reservationIndex !== -1) {
+        computerRoomRequests.splice(reservationIndex, 1);
+        localStorage.setItem('computerRoomRequests', JSON.stringify(computerRoomRequests));
+        requests.computerRoom = computerRoomRequests;
+        
+        alert('예약이 취소되었습니다.');
+        updateSchedule();
+        updateAdminStats();
+    }
+}
+
+// 예약 확인 모달 닫기
+function closeReservationModal() {
+    const modal = document.getElementById('reservationModal');
+    modal.classList.remove('active');
+    selectedSlot = null;
+}
+
+// 예약 확정
+function confirmReservation() {
+    const purpose = document.getElementById('modalPurpose').value.trim();
+    
+    if (!purpose) {
+        alert('사용 목적을 입력해주세요.');
+        return;
+    }
+    
+    if (!selectedSlot) {
+        alert('선택된 시간이 없습니다.');
+        return;
+    }
+    
+    // 예약 데이터 생성
+    const reservation = {
+        id: Date.now(),
+        requester: currentUser.name,
+        status: 'pending',
+        submittedAt: new Date().toLocaleString('ko-KR'),
+        requestDate: new Date().toISOString().split('T')[0],
+        useDate: selectedSlot.date,
+        useTime: selectedSlot.period,
+        purpose: purpose
+    };
+    
+    // 예약 추가
+    if (!requests.computerRoom) {
+        requests.computerRoom = [];
+    }
+    requests.computerRoom.push(reservation);
+    localStorage.setItem('computerRoomRequests', JSON.stringify(requests.computerRoom));
+    
+    alert('예약 신청이 완료되었습니다. 관리자 승인 후 확정됩니다.');
+    
+    // 모달 닫기 및 스케줄 업데이트
+    closeReservationModal();
+    updateSchedule();
+    updateAdminStats();
 }
 
 // 뒤로가기
