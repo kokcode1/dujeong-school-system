@@ -99,7 +99,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
 // Firebase 데이터 로드
 async function loadFirebaseData() {
-    if (!dbManager.isConnected()) {
+    if (!dbManager || !dbManager.isConnected()) {
         console.log('💾 Firebase 미연결 - localStorage 데이터 사용');
         return;
     }

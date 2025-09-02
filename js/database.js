@@ -173,5 +173,14 @@ class DatabaseManager {
     }
 }
 
-// 전역 데이터베이스 매니저 인스턴스
-const dbManager = new DatabaseManager();
+// 전역 데이터베이스 매니저 인스턴스 (지연 초기화)
+let dbManager = null;
+
+// Firebase 로딩 완료 후 DatabaseManager 초기화
+window.addEventListener('DOMContentLoaded', () => {
+    // Firebase 초기화 완료까지 잠시 대기
+    setTimeout(() => {
+        dbManager = new DatabaseManager();
+        console.log('📦 DatabaseManager 초기화 완료:', dbManager.isConnected() ? 'Firebase 연결됨' : 'localStorage 모드');
+    }, 100);
+});
