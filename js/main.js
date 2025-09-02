@@ -1,9 +1,45 @@
 // 사용자 데이터 (실제로는 서버에서 관리되어야 함)
 const users = {
-    'teacher1': { password: 'pass123', type: 'teacher', name: '김선생' },
-    'teacher2': { password: 'pass123', type: 'teacher', name: '이선생' },
+    'teacher1': { password: '1', type: 'teacher', name: '김선생' },
+    'teacher2': { password: '2', type: 'teacher', name: '이선생' },
     'admin': { password: 'admin123', type: 'admin', name: '관리자' }
 };
+
+// 학년반 기반 선생님 자동 생성 함수
+function generateTeacherFromGradeClass(grade, classNum) {
+    const teacherName = `${grade}학년 ${classNum}반 선생님`;
+    return {
+        username: `${grade}-${classNum}`,
+        name: teacherName,
+        type: 'teacher',
+        grade: grade,
+        class: classNum
+    };
+}
+
+// 하루 단위 세션 확인
+function isSessionValid(loginDate) {
+    if (!loginDate) return false;
+    const today = new Date().toDateString();
+    const sessionDate = new Date(loginDate).toDateString();
+    return today === sessionDate;
+}
+
+// 저장된 세션 확인 및 복원
+function checkSavedSession() {
+    const savedSession = localStorage.getItem('teacherSession');
+    if (savedSession) {
+        const session = JSON.parse(savedSession);
+        if (isSessionValid(session.loginDate)) {
+            currentUser = session.user;
+            return true;
+        } else {
+            // 만료된 세션 제거
+            localStorage.removeItem('teacherSession');
+        }
+    }
+    return false;
+}
 
 // 신청 데이터 저장
 let requests = {
@@ -22,20 +58,94 @@ let currentUser = null;
 
 // 페이지 로드 시 실행
 document.addEventListener('DOMContentLoaded', function() {
-    // 로그인 폼 이벤트 리스너
-    document.getElementById('loginForm').addEventListener('submit', handleLogin);
+    // 저장된 하루 세션 확인
+    if (checkSavedSession()) {
+        showUserSection();
+        updateAdminStats();
+        return;
+    }
     
-    // 저장된 세션 확인
+    // 기존 세션도 확인 (호환성을 위해)
     const savedUser = localStorage.getItem('currentUser');
     if (savedUser) {
         currentUser = JSON.parse(savedUser);
         showUserSection();
+        updateAdminStats();
+        return;
     }
+    
+    // 새로운 로그인 폼 이벤트 리스너 추가
+    setTimeout(() => {
+        const gradeClassForm = document.getElementById('gradeClassForm');
+        const adminForm = document.getElementById('adminForm');
+        
+        if (gradeClassForm) {
+            gradeClassForm.addEventListener('submit', handleGradeClassLogin);
+        }
+        
+        if (adminForm) {
+            adminForm.addEventListener('submit', handleAdminLogin);
+        }
+    }, 100);
     
     updateAdminStats();
 });
 
-// 로그인 처리
+// 학년반 로그인 처리
+function handleGradeClassLogin(e) {
+    e.preventDefault();
+    
+    const grade = document.getElementById('grade').value;
+    const classNum = document.getElementById('class').value;
+    
+    if (!grade || !classNum) {
+        alert('학년과 반을 모두 선택해주세요.');
+        return;
+    }
+    
+    // 1-6학년, 1-10반 범위 체크
+    if (grade < 1 || grade > 6 || classNum < 1 || classNum > 10) {
+        alert('올바른 학년(1-6)과 반(1-10)을 입력해주세요.');
+        return;
+    }
+    
+    // 선생님 정보 생성
+    currentUser = generateTeacherFromGradeClass(grade, classNum);
+    
+    // 하루 세션 저장
+    const session = {
+        user: currentUser,
+        loginDate: new Date().toISOString()
+    };
+    localStorage.setItem('teacherSession', JSON.stringify(session));
+    
+    // 기존 방식과 호환성을 위해 currentUser도 저장
+    localStorage.setItem('currentUser', JSON.stringify(currentUser));
+    
+    showUserSection();
+}
+
+// 관리자 로그인 처리
+function handleAdminLogin(e) {
+    e.preventDefault();
+    
+    const password = document.getElementById('adminPassword').value;
+    
+    if (password === 'admin123') {
+        currentUser = {
+            username: 'admin',
+            name: '관리자',
+            type: 'admin'
+        };
+        
+        localStorage.setItem('currentUser', JSON.stringify(currentUser));
+        showUserSection();
+    } else {
+        alert('관리자 비밀번호가 올바르지 않습니다.');
+    }
+}
+
+// 기존 로그인 처리 (호환성을 위해 유지)
 function handleLogin(e) {
     e.preventDefault();
     
@@ -972,6 +1082,25 @@ function confirmReservation() {
         updateSchedule();
     }
     updateAdminStats();
+}
+
+// 관리자 로그인 폼 표시
+function showAdminLogin() {
+    document.getElementById('gradeClassForm').style.display = 'none';
+    document.getElementById('adminLoginForm').style.display = 'block';
+    document.querySelector('p').style.display = 'none';
+    document.querySelector('.login-form h2').textContent = '관리자 로그인';
+}
+
+// 선생님 로그인 폼으로 돌아가기
+function hideAdminLogin() {
+    document.getElementById('gradeClassForm').style.display = 'block';
+    document.getElementById('adminLoginForm').style.display = 'none';
+    document.querySelector('p').style.display = 'block';
+    document.querySelector('.login-form h2').textContent = '두정초등학교 시설 관리';
+    
+    // 관리자 폼 리셋
+    document.getElementById('adminForm').reset();
 }
 
 // 뒤로가기

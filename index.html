@@ -20,26 +20,59 @@
             <!-- 로그인 화면 -->
             <div id="loginSection">
                 <div class="login-form">
-                    <h2>로그인</h2>
-                    <form id="loginForm">
+                    <h2>두정초등학교 시설 관리</h2>
+                    <p style="text-align: center; color: #4a5568; margin-bottom: 2rem; font-size: 0.95rem;">담임하시는 학년과 반을 선택해주세요</p>
+                    
+                    <!-- 선생님 로그인 -->
+                    <form id="gradeClassForm">
                         <div class="form-group">
-                            <label for="username">사용자명:</label>
-                            <input type="text" id="username" name="username" required>
-                        </div>
-                        <div class="form-group">
-                            <label for="password">비밀번호:</label>
-                            <input type="password" id="password" name="password" required>
-                        </div>
-                        <div class="form-group">
-                            <label for="userType">사용자 유형:</label>
-                            <select id="userType" name="userType" required>
-                                <option value="">선택하세요</option>
-                                <option value="teacher">선생님</option>
-                                <option value="admin">관리자</option>
+                            <label for="grade">학년:</label>
+                            <select id="grade" name="grade" required>
+                                <option value="">학년 선택</option>
+                                <option value="1">1학년</option>
+                                <option value="2">2학년</option>
+                                <option value="3">3학년</option>
+                                <option value="4">4학년</option>
+                                <option value="5">5학년</option>
+                                <option value="6">6학년</option>
                             </select>
                         </div>
-                        <button type="submit">로그인</button>
+                        <div class="form-group">
+                            <label for="class">반:</label>
+                            <select id="class" name="class" required>
+                                <option value="">반 선택</option>
+                                <option value="1">1반</option>
+                                <option value="2">2반</option>
+                                <option value="3">3반</option>
+                                <option value="4">4반</option>
+                                <option value="5">5반</option>
+                                <option value="6">6반</option>
+                                <option value="7">7반</option>
+                                <option value="8">8반</option>
+                                <option value="9">9반</option>
+                                <option value="10">10반</option>
+                            </select>
+                        </div>
+                        <button type="submit">시작하기</button>
                     </form>
+                    
+                    <div style="text-align: center; margin-top: 1.5rem;">
+                        <button type="button" onclick="showAdminLogin()" style="background: transparent; border: none; color: #718096; font-size: 0.85rem; cursor: pointer; text-decoration: underline;">관리자로 로그인</button>
+                    </div>
+                    
+                    <!-- 관리자 로그인 (숨겨짐) -->
+                    <div id="adminLoginForm" style="display: none; margin-top: 1.5rem; padding-top: 1.5rem; border-top: 1px solid #e2e8f0;">
+                        <form id="adminForm">
+                            <div class="form-group">
+                                <label for="adminPassword">관리자 비밀번호:</label>
+                                <input type="password" id="adminPassword" name="adminPassword" placeholder="관리자 비밀번호를 입력하세요" required>
+                            </div>
+                            <button type="submit">관리자 로그인</button>
+                        </form>
+                        <div style="text-align: center; margin-top: 1rem;">
+                            <button type="button" onclick="hideAdminLogin()" style="background: transparent; border: none; color: #718096; font-size: 0.85rem; cursor: pointer; text-decoration: underline;">선생님 로그인으로 돌아가기</button>
+                        </div>
+                    </div>
                 </div>
             </div>
 
