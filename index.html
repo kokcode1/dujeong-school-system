@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>두정초등학교 관리 시스템</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>두정초등학교 관리 시스템</h1>
+            <div class="user-info" id="userInfo" style="display: none;">
+                <span id="userName"></span>
+                <button onclick="logout()" class="logout-btn">로그아웃</button>
+            </div>
+        </header>
+
+        <main>
+            <!-- 로그인 화면 -->
+            <div id="loginSection">
+                <div class="login-form">
+                    <h2>로그인</h2>
+                    <form id="loginForm">
+                        <div class="form-group">
+                            <label for="username">사용자명:</label>
+                            <input type="text" id="username" name="username" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="password">비밀번호:</label>
+                            <input type="password" id="password" name="password" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="userType">사용자 유형:</label>
+                            <select id="userType" name="userType" required>
+                                <option value="">선택하세요</option>
+                                <option value="teacher">선생님</option>
+                                <option value="admin">관리자</option>
+                            </select>
+                        </div>
+                        <button type="submit">로그인</button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- 선생님 메뉴 -->
+            <div id="teacherSection" style="display: none;">
+                <div class="menu-grid">
+                    <div class="menu-item" onclick="openPage('computer-room')">
+                        <h3>컴퓨터실 사용 신청</h3>
+                        <p>컴퓨터실 사용을 신청합니다</p>
+                    </div>
+                    <div class="menu-item" onclick="openPage('tablet-info')">
+                        <h3>태블릿 공유기 정보</h3>
+                        <p>태블릿 공유기 정보를 확인합니다</p>
+                    </div>
+                    <div class="menu-item" onclick="openPage('science-supplies')">
+                        <h3>과학실 준비물 신청</h3>
+                        <p>과학실 준비물을 신청합니다</p>
+                    </div>
+                    <div class="menu-item" onclick="openPage('maintenance')">
+                        <h3>컴퓨터 유지보수 신청</h3>
+                        <p>컴퓨터 유지보수를 신청합니다</p>
+                    </div>
+                    <div class="menu-item" onclick="openPage('toner')">
+                        <h3>토너 신청</h3>
+                        <p>토너를 신청합니다</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 관리자 메뉴 -->
+            <div id="adminSection" style="display: none;">
+                <div class="admin-dashboard">
+                    <h2>관리자 대시보드</h2>
+                    <div class="dashboard-stats">
+                        <div class="stat-item">
+                            <h3>대기중인 신청</h3>
+                            <span id="pendingRequests">0</span>
+                        </div>
+                        <div class="stat-item">
+                            <h3>오늘 처리된 신청</h3>
+                            <span id="todayProcessed">0</span>
+                        </div>
+                        <div class="stat-item">
+                            <h3>전체 신청</h3>
+                            <span id="totalRequests">0</span>
+                        </div>
+                    </div>
+                    
+                    <div class="admin-menu-grid">
+                        <div class="menu-item" onclick="openAdminPage('computer-room-manage')">
+                            <h3>컴퓨터실 신청 관리</h3>
+                            <p>컴퓨터실 사용 신청을 관리합니다</p>
+                        </div>
+                        <div class="menu-item" onclick="openAdminPage('tablet-manage')">
+                            <h3>태블릿 정보 관리</h3>
+                            <p>태블릿 공유기 정보를 관리합니다</p>
+                        </div>
+                        <div class="menu-item" onclick="openAdminPage('science-manage')">
+                            <h3>과학실 준비물 관리</h3>
+                            <p>과학실 준비물 신청을 관리합니다</p>
+                        </div>
+                        <div class="menu-item" onclick="openAdminPage('maintenance-manage')">
+                            <h3>유지보수 신청 관리</h3>
+                            <p>컴퓨터 유지보수 신청을 관리합니다</p>
+                        </div>
+                        <div class="menu-item" onclick="openAdminPage('toner-manage')">
+                            <h3>토너 신청 관리</h3>
+                            <p>토너 신청을 관리합니다</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="js/main.js"></script>
+</body>
+</html>
