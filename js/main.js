@@ -504,20 +504,28 @@ function showTonerForm() {
     document.getElementById('requestDate').value = new Date().toISOString().split('T')[0];
 }
 
-// 신청 제출
+// 신청 제출 (자동 승인)
 function submitRequest(type, data) {
     const request = {
         id: Date.now(),
         requester: currentUser.name,
-        status: 'pending',
+        status: 'approved', // 자동 승인
         submittedAt: new Date().toLocaleString('ko-KR'),
+        processedAt: new Date().toLocaleString('ko-KR'), // 처리 시간도 동일하게
         ...data
     };
     
     requests[type].push(request);
     localStorage.setItem(type + 'Requests', JSON.stringify(requests[type]));
     
-    alert('신청이 완료되었습니다.');
+    // 신청 타입별 메시지
+    const typeNames = {
+        'science': '과학실 준비물',
+        'maintenance': '컴퓨터 유지보수',
+        'toner': '토너'
+    };
+    
+    alert(`🎉 ${typeNames[type]} 신청이 완료되었습니다!\n바로 처리됩니다.`);
     updateAdminStats();
     goBack();
 }
@@ -1043,12 +1051,13 @@ function confirmReservation() {
     const facilityType = currentFacility === 'computer' ? 'computerRoom' : 'tabletRouter';
     const storageKey = currentFacility === 'computer' ? 'computerRoomRequests' : 'tabletRouterRequests';
     
-    // 예약 데이터 생성
+    // 예약 데이터 생성 (자동 승인)
     const reservation = {
         id: Date.now(),
         requester: currentUser.name,
-        status: 'pending',
+        status: 'approved', // 바로 승인됨
         submittedAt: new Date().toLocaleString('ko-KR'),
+        processedAt: new Date().toLocaleString('ko-KR'), // 처리 시간도 동일하게
         requestDate: new Date().toISOString().split('T')[0],
         useDate: selectedSlot.date,
         useTime: selectedSlot.period,
@@ -1072,7 +1081,7 @@ function confirmReservation() {
     }
     
     const facilityName = currentFacility === 'computer' ? '컴퓨터실' : '공유기 (늘봄교실3)';
-    alert(`${facilityName} 예약 신청이 완료되었습니다. 관리자 승인 후 확정됩니다.`);
+    alert(`🎉 ${facilityName} 예약이 완료되었습니다!\n\n📅 예약 정보:\n• 날짜: ${selectedSlot.date}\n• 시간: ${selectedSlot.period}\n• 시설: ${facilityName}`);
     
     // 모달 닫기 및 스케줄 업데이트
     closeReservationModal();
