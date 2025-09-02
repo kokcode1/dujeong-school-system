@@ -943,7 +943,9 @@ function getWeeklyCellStatus(day, period, dateStr) {
     );
     
     if (existingReservation) {
-        if (existingReservation.requester === currentUser.name) {
+        if (existingReservation.requester === currentUser.name && 
+            existingReservation.requesterGrade == currentUser.grade && 
+            existingReservation.requesterClass == currentUser.class) {
             return { 
                 status: 'my-reservation', 
                 content: '내 예약',
@@ -998,7 +1000,9 @@ function cancelWeeklyReservation(date, period) {
     const reservationIndex = facilityRequests.findIndex(req => 
         req.useDate === date && 
         req.useTime === period && 
-        req.requester === currentUser.name
+        req.requester === currentUser.name && 
+        req.requesterGrade == currentUser.grade && 
+        req.requesterClass == currentUser.class
     );
     
     if (reservationIndex !== -1) {
@@ -1064,7 +1068,9 @@ function getSlotStatus(date, period) {
     
     if (existingReservation) {
         // 내 예약인지 확인
-        if (existingReservation.requester === currentUser.name) {
+        if (existingReservation.requester === currentUser.name && 
+            existingReservation.requesterGrade == currentUser.grade && 
+            existingReservation.requesterClass == currentUser.class) {
             return { status: 'my-reservation', requester: existingReservation.requester };
         } else {
             return { status: 'occupied', requester: existingReservation.requester };
@@ -1079,7 +1085,9 @@ function getSlotStatus(date, period) {
     );
     
     if (pendingReservation) {
-        if (pendingReservation.requester === currentUser.name) {
+        if (pendingReservation.requester === currentUser.name && 
+            pendingReservation.requesterGrade == currentUser.grade && 
+            pendingReservation.requesterClass == currentUser.class) {
             return { status: 'my-reservation', requester: pendingReservation.requester };
         } else {
             return { status: 'occupied', requester: pendingReservation.requester };
@@ -1118,7 +1126,9 @@ function cancelReservation(date, period) {
     const reservationIndex = computerRoomRequests.findIndex(req => 
         req.useDate === date && 
         req.useTime === period && 
-        req.requester === currentUser.name
+        req.requester === currentUser.name && 
+        req.requesterGrade == currentUser.grade && 
+        req.requesterClass == currentUser.class
     );
     
     if (reservationIndex !== -1) {
