@@ -19,6 +19,11 @@ try {
         firebase.initializeApp(firebaseConfig);
         db = firebase.firestore();
         isFirebaseEnabled = true;
+        
+        // window 객체에 설정 (DatabaseManager가 접근할 수 있도록)
+        window.db = db;
+        window.isFirebaseEnabled = isFirebaseEnabled;
+        
         console.log("✅ Firebase 연결됨 - 실시간 데이터베이스 사용");
         
         // Firestore 오프라인 지원 활성화 (경고 방지를 위해 주석 처리)

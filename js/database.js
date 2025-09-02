@@ -11,6 +11,14 @@ class DatabaseManager {
     updateFirebaseStatus() {
         this.isFirebaseEnabled = window.isFirebaseEnabled || false;
         this.db = window.db || null;
+        console.log('🔍 Firebase 상태 확인:', {
+            isFirebaseEnabled: this.isFirebaseEnabled,
+            hasDb: !!this.db,
+            windowVars: {
+                isFirebaseEnabled: window.isFirebaseEnabled,
+                db: !!window.db
+            }
+        });
     }
 
     // 컬렉션별 참조 생성
