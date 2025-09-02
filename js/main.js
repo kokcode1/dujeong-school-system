@@ -58,24 +58,30 @@ let currentUser = null;
 
 // 페이지 로드 시 실행
 document.addEventListener('DOMContentLoaded', function() {
-    // 저장된 하루 세션 확인
-    if (checkSavedSession()) {
-        showUserSection();
-        updateAdminStats();
-        return;
-    }
-    
-    // 기존 세션도 확인 (호환성을 위해)
-    const savedUser = localStorage.getItem('currentUser');
-    if (savedUser) {
-        currentUser = JSON.parse(savedUser);
-        showUserSection();
-        updateAdminStats();
-        return;
-    }
-    
-    // 새로운 로그인 폼 이벤트 리스너 추가
-    setTimeout(() => {
+    // Firebase 초기화 대기 후 실행
+    setTimeout(async () => {
+        // Firebase 데이터 로드
+        await loadFirebaseData();
+        
+        // 저장된 하루 세션 확인
+        if (checkSavedSession()) {
+            showUserSection();
+            setupRealtimeListeners(); // 실시간 리스너 설정
+            updateAdminStats();
+            return;
+        }
+        
+        // 기존 세션도 확인 (호환성을 위해)
+        const savedUser = localStorage.getItem('currentUser');
+        if (savedUser) {
+            currentUser = JSON.parse(savedUser);
+            showUserSection();
+            setupRealtimeListeners(); // 실시간 리스너 설정
+            updateAdminStats();
+            return;
+        }
+        
+        // 새로운 로그인 폼 이벤트 리스너 추가
         const gradeClassForm = document.getElementById('gradeClassForm');
         const adminForm = document.getElementById('adminForm');
         
@@ -86,10 +92,88 @@ document.addEventListener('DOMContentLoaded', function() {
         if (adminForm) {
             adminForm.addEventListener('submit', handleAdminLogin);
         }
-    }, 100);
-    
-    updateAdminStats();
+        
+        updateAdminStats();
+    }, 1000);
 });
+
+// Firebase 데이터 로드
+async function loadFirebaseData() {
+    if (!dbManager.isConnected()) {
+        console.log('💾 Firebase 미연결 - localStorage 데이터 사용');
+        return;
+    }
+    
+    try {
+        console.log('🔄 Firebase에서 데이터 로드 중...');
+        
+        // 모든 컬렉션 데이터 로드
+        const collections = [
+            'computerRoomRequests',
+            'tabletRouterRequests', 
+            'scienceRequests',
+            'maintenanceRequests',
+            'tonerRequests'
+        ];
+        
+        for (const collectionName of collections) {
+            const data = await dbManager.getDocuments(collectionName);
+            
+            // requests 객체 업데이트
+            const requestType = collectionName.replace('Requests', '').replace('computerRoom', 'computerRoom').replace('tabletRouter', 'tabletRouter');
+            if (requestType === 'computerRoom') {
+                requests.computerRoom = data;
+            } else if (requestType === 'tabletRouter') {
+                requests.tabletRouter = data;
+            } else {
+                requests[requestType] = data;
+            }
+            
+            console.log(`📄 ${collectionName}: ${data.length}개 로드됨`);
+        }
+        
+        console.log('✅ Firebase 데이터 로드 완료');
+    } catch (error) {
+        console.error('❌ Firebase 데이터 로드 오류:', error);
+    }
+}
+
+// 실시간 리스너 설정
+function setupRealtimeListeners() {
+    if (!dbManager.isConnected()) {
+        return;
+    }
+    
+    console.log('🔄 실시간 데이터 동기화 설정 중...');
+    
+    // 컴퓨터실 예약 실시간 감지
+    dbManager.setupRealtimeListener('computerRoomRequests', (data) => {
+        requests.computerRoom = data;
+        if (document.getElementById('weeklyScheduleContainer')) {
+            updateWeeklySchedule();
+        }
+        updateAdminStats();
+    });
+    
+    // 공유기 예약 실시간 감지  
+    dbManager.setupRealtimeListener('tabletRouterRequests', (data) => {
+        requests.tabletRouter = data;
+        if (document.getElementById('weeklyScheduleContainer')) {
+            updateWeeklySchedule();
+        }
+        updateAdminStats();
+    });
+    
+    // 기타 신청들 실시간 감지
+    ['science', 'maintenance', 'toner'].forEach(type => {
+        dbManager.setupRealtimeListener(type + 'Requests', (data) => {
+            requests[type] = data;
+            updateAdminStats();
+        });
+    });
+    
+    console.log('✅ 실시간 데이터 동기화 활성화');
+}
 
 // 학년반 로그인 처리
 function handleGradeClassLogin(e) {
@@ -504,28 +588,50 @@ function showTonerForm() {
     document.getElementById('requestDate').value = new Date().toISOString().split('T')[0];
 }
 
-// 신청 제출 (자동 승인)
-function submitRequest(type, data) {
+// 신청 제출 (Firebase 지원, 자동 승인)
+async function submitRequest(type, data) {
     const request = {
         id: Date.now(),
         requester: currentUser.name,
+        requesterGrade: currentUser.grade || null,
+        requesterClass: currentUser.class || null,
         status: 'approved', // 자동 승인
         submittedAt: new Date().toLocaleString('ko-KR'),
         processedAt: new Date().toLocaleString('ko-KR'), // 처리 시간도 동일하게
+        schoolName: '두정초등학교', // 학교 구분 추가
         ...data
     };
     
-    requests[type].push(request);
-    localStorage.setItem(type + 'Requests', JSON.stringify(requests[type]));
+    try {
+        // 데이터베이스에 저장 (Firebase 또는 localStorage)
+        const collectionName = type + 'Requests';
+        await dbManager.addDocument(collectionName, request);
+        
+        // 로컬 requests 객체도 업데이트 (기존 코드 호환성을 위해)
+        if (!requests[type]) {
+            requests[type] = [];
+        }
+        requests[type].push(request);
+        
+        // 신청 타입별 메시지
+        const typeNames = {
+            'science': '과학실 준비물',
+            'maintenance': '컴퓨터 유지보수',
+            'toner': '토너'
+        };
+        
+        const statusMsg = dbManager.isConnected() ? 
+            '실시간 데이터베이스에 저장되어 관리자가 바로 확인할 수 있습니다!' : 
+            '로컬에 저장되었습니다 (데모 모드)';
+        
+        alert(`🎉 ${typeNames[type]} 신청이 완료되었습니다!\n바로 처리됩니다.\n\n${statusMsg}`);
+        
+    } catch (error) {
+        console.error('신청 저장 오류:', error);
+        alert('❌ 신청 저장 중 오류가 발생했습니다. 다시 시도해주세요.');
+        return;
+    }
     
-    // 신청 타입별 메시지
-    const typeNames = {
-        'science': '과학실 준비물',
-        'maintenance': '컴퓨터 유지보수',
-        'toner': '토너'
-    };
-    
-    alert(`🎉 ${typeNames[type]} 신청이 완료되었습니다!\n바로 처리됩니다.`);
     updateAdminStats();
     goBack();
 }
@@ -1033,8 +1139,8 @@ function closeReservationModal() {
     selectedSlot = null;
 }
 
-// 예약 확정
-function confirmReservation() {
+// 예약 확정 (Firebase 지원)
+async function confirmReservation() {
     const purpose = document.getElementById('modalPurpose').value.trim();
     
     if (!purpose) {
@@ -1047,14 +1153,15 @@ function confirmReservation() {
         return;
     }
     
-    // 시설별 저장 키 결정
-    const facilityType = currentFacility === 'computer' ? 'computerRoom' : 'tabletRouter';
-    const storageKey = currentFacility === 'computer' ? 'computerRoomRequests' : 'tabletRouterRequests';
+    // 시설별 컬렉션 이름 결정
+    const collectionName = currentFacility === 'computer' ? 'computerRoomRequests' : 'tabletRouterRequests';
     
     // 예약 데이터 생성 (자동 승인)
     const reservation = {
         id: Date.now(),
         requester: currentUser.name,
+        requesterGrade: currentUser.grade || null,
+        requesterClass: currentUser.class || null,
         status: 'approved', // 바로 승인됨
         submittedAt: new Date().toLocaleString('ko-KR'),
         processedAt: new Date().toLocaleString('ko-KR'), // 처리 시간도 동일하게
@@ -1062,26 +1169,39 @@ function confirmReservation() {
         useDate: selectedSlot.date,
         useTime: selectedSlot.period,
         purpose: purpose,
-        facility: currentFacility // 시설 구분 추가
+        facility: currentFacility, // 시설 구분 추가
+        schoolName: '두정초등학교' // 학교 구분 추가
     };
     
-    // 시설별 예약 배열 초기화 및 추가
-    if (currentFacility === 'computer') {
-        if (!requests.computerRoom) {
-            requests.computerRoom = [];
+    try {
+        // 데이터베이스에 저장 (Firebase 또는 localStorage)
+        await dbManager.addDocument(collectionName, reservation);
+        
+        // 로컬 requests 객체도 업데이트 (기존 코드 호환성을 위해)
+        if (currentFacility === 'computer') {
+            if (!requests.computerRoom) {
+                requests.computerRoom = [];
+            }
+            requests.computerRoom.push(reservation);
+        } else {
+            if (!requests.tabletRouter) {
+                requests.tabletRouter = [];
+            }
+            requests.tabletRouter.push(reservation);
         }
-        requests.computerRoom.push(reservation);
-        localStorage.setItem('computerRoomRequests', JSON.stringify(requests.computerRoom));
-    } else {
-        if (!requests.tabletRouter) {
-            requests.tabletRouter = [];
-        }
-        requests.tabletRouter.push(reservation);
-        localStorage.setItem('tabletRouterRequests', JSON.stringify(requests.tabletRouter));
+        
+        const facilityName = currentFacility === 'computer' ? '컴퓨터실' : '공유기 (늘봄교실3)';
+        const statusMsg = dbManager.isConnected() ? 
+            '실시간 데이터베이스에 저장되어 모든 선생님이 확인할 수 있습니다!' : 
+            '로컬에 저장되었습니다 (데모 모드)';
+        
+        alert(`🎉 ${facilityName} 예약이 완료되었습니다!\n\n📅 예약 정보:\n• 날짜: ${selectedSlot.date}\n• 시간: ${selectedSlot.period}\n• 시설: ${facilityName}\n\n${statusMsg}`);
+        
+    } catch (error) {
+        console.error('예약 저장 오류:', error);
+        alert('❌ 예약 저장 중 오류가 발생했습니다. 다시 시도해주세요.');
+        return;
     }
-    
-    const facilityName = currentFacility === 'computer' ? '컴퓨터실' : '공유기 (늘봄교실3)';
-    alert(`🎉 ${facilityName} 예약이 완료되었습니다!\n\n📅 예약 정보:\n• 날짜: ${selectedSlot.date}\n• 시간: ${selectedSlot.period}\n• 시설: ${facilityName}`);
     
     // 모달 닫기 및 스케줄 업데이트
     closeReservationModal();
