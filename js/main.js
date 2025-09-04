@@ -1543,34 +1543,48 @@ function goBack() {
         // 현재 주의 예약 상태 확인
         const reservationStatus = getUserReservationStatus(currentUser);
         
-        // 예약 상태 표시 텍스트 생성
-        const getReservationStatusText = (reservation) => {
-            if (!reservation) return '';
+        // 통합 예약 상태 위젯 생성
+        const createReservationWidget = (computerReservation, routerReservation) => {
+            const formatReservation = (reservation, facilityName) => {
+                if (!reservation) return `<div class="no-reservation">❌ ${facilityName}: 예약 없음</div>`;
+                
+                const date = new Date(reservation.useDate);
+                const dayNames = ['일', '월', '화', '수', '목', '금', '토'];
+                const dayName = dayNames[date.getDay()];
+                
+                return `
+                    <div class="has-reservation-item">
+                        <span class="facility-name">✅ ${facilityName}:</span>
+                        <span class="reservation-details">${date.getMonth() + 1}/${date.getDate()}(${dayName}) ${reservation.useTime}</span>
+                    </div>
+                `;
+            };
             
-            const date = new Date(reservation.useDate);
-            const dayNames = ['일', '월', '화', '수', '목', '금', '토'];
-            const dayName = dayNames[date.getDay()];
+            const hasAnyReservation = computerReservation || routerReservation;
             
             return `
-                <div class="reservation-status">
-                    <span class="status-label">📅 이번 주 예약:</span>
-                    <span class="status-info">${date.getMonth() + 1}/${date.getDate()}(${dayName}) ${reservation.useTime}</span>
+                <div class="reservation-widget ${hasAnyReservation ? 'has-reservations' : ''}">
+                    <div class="widget-header">📅 이번 주 예약 현황</div>
+                    <div class="reservation-list">
+                        ${formatReservation(computerReservation, '컴퓨터실')}
+                        ${formatReservation(routerReservation, '공유기')}
+                    </div>
                 </div>
             `;
         };
         
         // 선생님 메뉴 표시
         content.innerHTML = `
+            ${createReservationWidget(reservationStatus.computer, reservationStatus.router)}
+            
             <div class="menu-grid">
-                <div class="menu-item ${reservationStatus.computer ? 'has-reservation' : ''}" onclick="openPage('computer-room')">
-                    <h3>컴퓨터실 사용 신청</h3>
-                    <p>컴퓨터실 사용을 신청합니다</p>
-                    ${getReservationStatusText(reservationStatus.computer)}
+                <div class="menu-item" onclick="openPage('computer-room')">
+                    <h3>컴퓨터실/공유기 예약</h3>
+                    <p>컴퓨터실과 공유기를 예약합니다</p>
                 </div>
-                <div class="menu-item ${reservationStatus.router ? 'has-reservation' : ''}" onclick="openPage('tablet-info')">
+                <div class="menu-item" onclick="openPage('tablet-info')">
                     <h3>태블릿 공유기 정보</h3>
                     <p>태블릿 공유기 정보를 확인합니다</p>
-                    ${getReservationStatusText(reservationStatus.router)}
                 </div>
                 <div class="menu-item" onclick="openPage('science-supplies')">
                     <h3>과학실 준비물 신청</h3>
