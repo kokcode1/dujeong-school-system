@@ -1542,9 +1542,14 @@ function goBack() {
     if (currentUser && currentUser.type === 'teacher') {
         // 현재 주의 예약 상태 확인
         const reservationStatus = getUserReservationStatus(currentUser);
+        console.log('🔍 예약 상태 디버깅:', reservationStatus);
+        console.log('📊 현재 사용자:', currentUser);
+        console.log('📋 requests 객체:', requests);
         
         // 통합 예약 상태 위젯 생성
         const createReservationWidget = (computerReservation, routerReservation) => {
+            console.log('🎨 위젯 생성 중:', { computerReservation, routerReservation });
+            
             const formatReservation = (reservation, facilityName) => {
                 if (!reservation) return `<div class="no-reservation">❌ ${facilityName}: 예약 없음</div>`;
                 
