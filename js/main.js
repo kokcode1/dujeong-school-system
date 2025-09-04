@@ -297,10 +297,14 @@ function showUserSection() {
     if (currentUser.type === 'teacher') {
         document.getElementById('teacherSection').style.display = 'block';
         document.getElementById('adminSection').style.display = 'none';
+        // 선생님 메뉴와 예약 위젯을 바로 표시
+        goBack();
     } else if (currentUser.type === 'admin') {
         document.getElementById('adminSection').style.display = 'block';
         document.getElementById('teacherSection').style.display = 'none';
         updateAdminStats();
+        // 관리자 메뉴를 바로 표시
+        goBack();
     }
     
     // 로그아웃 버튼 재설정 (로그인 후 DOM이 업데이트되므로)
