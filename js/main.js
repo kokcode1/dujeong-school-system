@@ -442,8 +442,16 @@ function getUserReservationStatus(userInfo) {
         const matchesStatus = req.status === 'approved' || req.status === 'pending';
         
         console.log('🔍 컴퓨터실 예약 매칭 체크:', {
-            reservation: req,
-            matchesDate, matchesUser, matchesGrade, matchesClass, matchesStatus,
+            reservation: {
+                useDate: req.useDate,
+                requester: req.requester,
+                requesterGrade: req.requesterGrade,
+                requesterClass: req.requesterClass,
+                status: req.status
+            },
+            weekRange: { weekStartStr, weekEndStr },
+            matchesDate: `${req.useDate} >= ${weekStartStr} && ${req.useDate} <= ${weekEndStr} = ${matchesDate}`,
+            matchesUser, matchesGrade, matchesClass, matchesStatus,
             allMatch: matchesDate && matchesUser && matchesGrade && matchesClass && matchesStatus
         });
         
