@@ -422,25 +422,51 @@ function getUserReservationStatus(userInfo) {
     const weekStartStr = thisMonday.toISOString().split('T')[0];
     const weekEndStr = weekEnd.toISOString().split('T')[0];
     
+    console.log('📅 주간 범위 계산:', {
+        today: today.toISOString().split('T')[0],
+        thisMonday: weekStartStr,
+        weekEnd: weekEndStr,
+        userInfo: userInfo
+    });
+    
     // 컴퓨터실 예약 확인
-    const computerReservation = (requests.computerRoom || []).find(req => 
-        req.useDate >= weekStartStr && 
-        req.useDate <= weekEndStr &&
-        req.requester === userInfo.name &&
-        req.requesterGrade == userInfo.grade &&
-        req.requesterClass == userInfo.class &&
-        (req.status === 'approved' || req.status === 'pending')
-    );
+    const computerReservation = (requests.computerRoom || []).find(req => {
+        const matchesDate = req.useDate >= weekStartStr && req.useDate <= weekEndStr;
+        const matchesUser = req.requester === userInfo.name;
+        const matchesGrade = req.requesterGrade == userInfo.grade;
+        const matchesClass = req.requesterClass == userInfo.class;
+        const matchesStatus = req.status === 'approved' || req.status === 'pending';
+        
+        console.log('🔍 컴퓨터실 예약 매칭 체크:', {
+            reservation: req,
+            matchesDate, matchesUser, matchesGrade, matchesClass, matchesStatus,
+            allMatch: matchesDate && matchesUser && matchesGrade && matchesClass && matchesStatus
+        });
+        
+        return matchesDate && matchesUser && matchesGrade && matchesClass && matchesStatus;
+    });
     
     // 공유기 예약 확인
-    const routerReservation = (requests.tabletRouter || []).find(req => 
-        req.useDate >= weekStartStr && 
-        req.useDate <= weekEndStr &&
-        req.requester === userInfo.name &&
-        req.requesterGrade == userInfo.grade &&
-        req.requesterClass == userInfo.class &&
-        (req.status === 'approved' || req.status === 'pending')
-    );
+    const routerReservation = (requests.tabletRouter || []).find(req => {
+        const matchesDate = req.useDate >= weekStartStr && req.useDate <= weekEndStr;
+        const matchesUser = req.requester === userInfo.name;
+        const matchesGrade = req.requesterGrade == userInfo.grade;
+        const matchesClass = req.requesterClass == userInfo.class;
+        const matchesStatus = req.status === 'approved' || req.status === 'pending';
+        
+        console.log('🔍 공유기 예약 매칭 체크:', {
+            reservation: req,
+            matchesDate, matchesUser, matchesGrade, matchesClass, matchesStatus,
+            allMatch: matchesDate && matchesUser && matchesGrade && matchesClass && matchesStatus
+        });
+        
+        return matchesDate && matchesUser && matchesGrade && matchesClass && matchesStatus;
+    });
+    
+    console.log('✅ 최종 예약 상태:', {
+        computer: computerReservation,
+        router: routerReservation
+    });
     
     return {
         computer: computerReservation,
