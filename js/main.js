@@ -25,7 +25,28 @@ function isSessionValid(loginDate) {
     return today === sessionDate;
 }
 
-// 저장된 세션 확인 및 복원
+// 자동 로그인 체크
+function checkAutoLogin() {
+    // 학교 비밀번호 확인
+    const isPasswordVerified = localStorage.getItem('schoolPasswordVerified') === 'true';
+    // 저장된 선생님 정보 확인
+    const savedTeacherInfo = localStorage.getItem('savedTeacherInfo');
+    
+    if (isPasswordVerified && savedTeacherInfo) {
+        try {
+            const teacherInfo = JSON.parse(savedTeacherInfo);
+            // 자동 로그인 수행
+            currentUser = generateTeacherFromGradeClass(teacherInfo.grade, teacherInfo.class);
+            return true;
+        } catch (e) {
+            // 저장된 정보가 손상된 경우 학년/반 정보만 제거
+            localStorage.removeItem('savedTeacherInfo');
+        }
+    }
+    return false;
+}
+
+// 저장된 세션 확인 및 복원 (기존 함수 - 호환성 유지)
 function checkSavedSession() {
     const savedSession = localStorage.getItem('teacherSession');
     if (savedSession) {
@@ -63,11 +84,19 @@ document.addEventListener('DOMContentLoaded', function() {
         // Firebase 데이터 로드
         await loadFirebaseData();
         
-        // 자동 로그인 비활성화 - 항상 로그인 화면 표시
+        // 자동 로그인 체크
+        if (checkAutoLogin()) {
+            showUserSection();
+            return; // 자동 로그인 성공 시 로그인 화면 건너뜀
+        }
         
-        // 기존 저장된 세션 정리
-        localStorage.removeItem('teacherSession');
-        localStorage.removeItem('currentUser');
+        // 학교 비밀번호가 이미 인증된 경우 학년/반 선택으로 바로 이동
+        const isPasswordVerified = localStorage.getItem('schoolPasswordVerified') === 'true';
+        if (isPasswordVerified) {
+            document.getElementById('schoolPasswordForm').style.display = 'none';
+            document.getElementById('gradeClassForm').style.display = 'block';
+            document.getElementById('loginDescription').textContent = '담임하시는 학년과 반을 선택해주세요';
+        }
         
         // 학년별 반 개수 설정
         const classCountByGrade = {
@@ -205,6 +234,13 @@ function setupLogoutButton() {
 function showGradeSelection() {
     document.querySelector('.grade-selection').style.display = 'block';
     document.querySelector('.class-selection').style.display = 'none';
+    
+    // 선택된 학년/반 버튼 초기화
+    const gradeButtons = document.querySelectorAll('.grade-btn');
+    const classButtons = document.querySelectorAll('.class-btn');
+    
+    gradeButtons.forEach(btn => btn.classList.remove('selected'));
+    classButtons.forEach(btn => btn.classList.remove('selected'));
 }
 
 // 반 선택 표시
@@ -234,14 +270,37 @@ function showClassSelection(grade) {
     document.querySelector('.class-selection').style.display = 'block';
 }
 
+// 학교 비밀번호 검증
+function verifySchoolPassword() {
+    const password = document.getElementById('schoolPassword').value;
+    const SCHOOL_PASSWORD = '9581'; // 학교 비밀번호
+    
+    if (password === SCHOOL_PASSWORD) {
+        // 학교 비밀번호 저장
+        localStorage.setItem('schoolPasswordVerified', 'true');
+        
+        // UI 전환
+        document.getElementById('schoolPasswordForm').style.display = 'none';
+        document.getElementById('gradeClassForm').style.display = 'block';
+        document.getElementById('loginDescription').textContent = '담임하시는 학년과 반을 선택해주세요';
+    } else {
+        alert('학교 비밀번호가 올바르지 않습니다.');
+    }
+}
+
 // 선생님으로 로그인
 function loginAsTeacher(grade, classNum) {
     // 선생님 정보 생성
     currentUser = generateTeacherFromGradeClass(grade, classNum);
     
-    // 세션 저장하지 않음 (자동 로그인 방지)
-    // localStorage.setItem('teacherSession', JSON.stringify(session));
-    // localStorage.setItem('currentUser', JSON.stringify(currentUser));
+    // 학년/반 정보 저장
+    const teacherInfo = {
+        grade: grade,
+        class: classNum,
+        loginDate: new Date().toISOString()
+    };
+    localStorage.setItem('savedTeacherInfo', JSON.stringify(teacherInfo));
+    localStorage.setItem('currentUser', JSON.stringify(currentUser));
     
     showUserSection();
 }
@@ -318,6 +377,11 @@ function logout() {
     console.log('🚪 로그아웃 시작');
     
     currentUser = null;
+    // 학교 비밀번호는 유지, 학년/반 정보만 제거
+    localStorage.removeItem('savedTeacherInfo'); // 학년/반 정보만 제거
+    // localStorage.removeItem('schoolPasswordVerified'); // 학교 비밀번호는 유지
+    
+    // 기존 세션 제거
     localStorage.removeItem('currentUser');
     localStorage.removeItem('teacherSession');
     
@@ -326,22 +390,48 @@ function logout() {
     const userInfo = document.getElementById('userInfo');
     const teacherSection = document.getElementById('teacherSection');
     const adminSection = document.getElementById('adminSection');
+    const main = document.querySelector('main');
     
-    if (loginSection) loginSection.style.display = 'block';
-    if (userInfo) userInfo.style.display = 'none';
+    // 모든 섹션 숨기기
     if (teacherSection) teacherSection.style.display = 'none';
     if (adminSection) adminSection.style.display = 'none';
+    if (userInfo) userInfo.style.display = 'none';
     
-    // 관리자 폼만 초기화 (존재할 경우)
+    // main 컨테이너 클리어 (동적으로 생성된 내용 제거)
+    if (main) {
+        main.innerHTML = '';
+    }
+    
+    // 로그인 섹션 표시
+    if (loginSection) loginSection.style.display = 'block';
+    
+    // 관리자 폼 초기화 (존재할 경우)
     const adminForm = document.getElementById('adminForm');
     if (adminForm) {
         adminForm.reset();
     }
     
+    // 로그아웃 시 항상 학년/반 선택 화면으로 (학교 비밀번호는 이미 저장되어 있음)
+    document.getElementById('schoolPasswordForm').style.display = 'none';
+    document.getElementById('gradeClassForm').style.display = 'block';
+    document.getElementById('loginDescription').textContent = '담임하시는 학년과 반을 선택해주세요';
+    
     // 학년/반 선택 상태 초기화
     showGradeSelection();
     
     console.log('✅ 로그아웃 완료');
+}
+
+// 업데이트 예정 메시지 표시
+function showUpdateMessage(feature) {
+    const messages = {
+        'science-supplies': '과학실 준비물 신청',
+        'maintenance': '컴퓨터 유지보수 신청', 
+        'toner': '토너 신청'
+    };
+    
+    const featureName = messages[feature] || '해당 기능';
+    alert(`${featureName} 기능은 현재 업데이트 중입니다.\n곧 새로운 기능으로 찾아뵙겠습니다! 🚀`);
 }
 
 // 페이지 열기 (선생님)
@@ -418,29 +508,56 @@ function getUserReservationStatus(userInfo) {
     
     const today = new Date();
     const thisMonday = new Date(today);
-    thisMonday.setDate(today.getDate() - today.getDay() + 1);
+    thisMonday.setDate(today.getDate() - today.getDay() + 1); // 이번주 월요일
     
-    // 이번주와 다음주 예약을 모두 확인 (2주간)
+    // 이번주 일요일부터 다음주 금요일까지 (일요일 예약도 포함)
+    const thisWeekStart = new Date(thisMonday);
+    thisWeekStart.setDate(thisMonday.getDate() - 1); // 일요일
     const twoWeeksEnd = new Date(thisMonday);
     twoWeeksEnd.setDate(thisMonday.getDate() + 11); // 다음주 금요일까지
     
-    const weekStartStr = thisMonday.toISOString().split('T')[0];
+    const weekStartStr = thisWeekStart.toISOString().split('T')[0]; // 일요일부터
     const twoWeeksEndStr = twoWeeksEnd.toISOString().split('T')[0];
     
     console.log('📅 주간 범위 계산:', {
         today: today.toISOString().split('T')[0],
-        thisMonday: weekStartStr,
+        weekStart: weekStartStr,
         twoWeeksEnd: twoWeeksEndStr,
         userInfo: userInfo
     });
     
     // 컴퓨터실 예약 확인 (이번주+다음주)
+    console.log('🔍 전체 컴퓨터실 예약 데이터:', requests.computerRoom);
+    
     const computerReservations = (requests.computerRoom || []).filter(req => {
         const matchesDate = req.useDate >= weekStartStr && req.useDate <= twoWeeksEndStr;
         const matchesUser = req.requester === userInfo.name;
         const matchesGrade = req.requesterGrade == userInfo.grade;
         const matchesClass = req.requesterClass == userInfo.class;
         const matchesStatus = req.status === 'approved' || req.status === 'pending';
+        
+        console.log('🔍 예약 매칭 체크:', {
+            reservation: {
+                useDate: req.useDate,
+                requester: req.requester,
+                requesterGrade: req.requesterGrade,
+                requesterClass: req.requesterClass,
+                status: req.status
+            },
+            currentUser: {
+                name: userInfo.name,
+                grade: userInfo.grade,
+                class: userInfo.class
+            },
+            matches: {
+                date: `${req.useDate} 범위: ${weekStartStr} ~ ${twoWeeksEndStr} = ${matchesDate}`,
+                user: `${req.requester} === ${userInfo.name} = ${matchesUser}`,
+                grade: `${req.requesterGrade} == ${userInfo.grade} = ${matchesGrade}`,
+                class: `${req.requesterClass} == ${userInfo.class} = ${matchesClass}`,
+                status: `${req.status} in [approved,pending] = ${matchesStatus}`
+            },
+            finalMatch: matchesDate && matchesUser && matchesGrade && matchesClass && matchesStatus
+        });
         
         return matchesDate && matchesUser && matchesGrade && matchesClass && matchesStatus;
     });
@@ -1546,9 +1663,19 @@ function showAdminLogin() {
 
 // 선생님 로그인 폼으로 돌아가기
 function hideAdminLogin() {
-    document.getElementById('gradeClassForm').style.display = 'block';
+    // 학교 비밀번호가 이미 인증된 경우 학년/반 선택으로
+    const isPasswordVerified = localStorage.getItem('schoolPasswordVerified') === 'true';
+    if (isPasswordVerified) {
+        document.getElementById('gradeClassForm').style.display = 'block';
+        document.getElementById('schoolPasswordForm').style.display = 'none';
+        document.getElementById('loginDescription').textContent = '담임하시는 학년과 반을 선택해주세요';
+    } else {
+        document.getElementById('schoolPasswordForm').style.display = 'block';
+        document.getElementById('gradeClassForm').style.display = 'none';
+        document.getElementById('loginDescription').textContent = '학교 시스템에 접속하기 위해 비밀번호를 입력해주세요';
+    }
     document.getElementById('adminLoginForm').style.display = 'none';
-    document.querySelector('p').style.display = 'block';
+    document.getElementById('loginDescription').style.display = 'block';
     document.querySelector('.login-form h2').textContent = '두정초등학교 시설 관리';
     
     // 관리자 폼 리셋

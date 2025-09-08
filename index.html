@@ -21,10 +21,19 @@
             <div id="loginSection">
                 <div class="login-form">
                     <h2>두정초등학교 시설 관리</h2>
-                    <p style="text-align: center; color: #4a5568; margin-bottom: 2rem; font-size: 0.95rem;">담임하시는 학년과 반을 선택해주세요</p>
+                    <p id="loginDescription" style="text-align: center; color: #4a5568; margin-bottom: 2rem; font-size: 0.95rem;">학교 시스템에 접속하기 위해 비밀번호를 입력해주세요</p>
                     
+                    <!-- 학교 비밀번호 입력 -->
+                    <div id="schoolPasswordForm">
+                        <div class="form-group">
+                            <label for="schoolPassword">학교 비밀번호:</label>
+                            <input type="password" id="schoolPassword" name="schoolPassword" placeholder="학교 비밀번호를 입력하세요" required>
+                        </div>
+                        <button type="button" onclick="verifySchoolPassword()">다음</button>
+                    </div>
+
                     <!-- 선생님 로그인 -->
-                    <div id="gradeClassForm">
+                    <div id="gradeClassForm" style="display: none;">
                         <div class="grade-selection">
                             <h3>학년을 선택해주세요</h3>
                             <div class="grade-buttons">
@@ -69,24 +78,24 @@
             <div id="teacherSection" style="display: none;">
                 <div class="menu-grid">
                     <div class="menu-item" onclick="openPage('computer-room')">
-                        <h3>컴퓨터실 사용 신청</h3>
-                        <p>컴퓨터실 사용을 신청합니다</p>
+                        <h3>컴퓨터실/공유기 예약</h3>
+                        <p>컴퓨터실과 공유기를 예약합니다</p>
                     </div>
                     <div class="menu-item" onclick="openPage('tablet-info')">
                         <h3>태블릿 공유기 정보</h3>
                         <p>태블릿 공유기 정보를 확인합니다</p>
                     </div>
-                    <div class="menu-item" onclick="openPage('science-supplies')">
+                    <div class="menu-item disabled" onclick="showUpdateMessage('science-supplies')">
                         <h3>과학실 준비물 신청</h3>
-                        <p>과학실 준비물을 신청합니다</p>
+                        <p>🔄 업데이트 예정</p>
                     </div>
-                    <div class="menu-item" onclick="openPage('maintenance')">
+                    <div class="menu-item disabled" onclick="showUpdateMessage('maintenance')">
                         <h3>컴퓨터 유지보수 신청</h3>
-                        <p>컴퓨터 유지보수를 신청합니다</p>
+                        <p>🔄 업데이트 예정</p>
                     </div>
-                    <div class="menu-item" onclick="openPage('toner')">
+                    <div class="menu-item disabled" onclick="showUpdateMessage('toner')">
                         <h3>토너 신청</h3>
-                        <p>토너를 신청합니다</p>
+                        <p>🔄 업데이트 예정</p>
                     </div>
                 </div>
             </div>
