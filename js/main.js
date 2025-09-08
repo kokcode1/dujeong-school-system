@@ -1746,21 +1746,9 @@ function goBack() {
                     <h3>컴퓨터실/공유기 예약</h3>
                     <p>컴퓨터실과 공유기를 예약합니다</p>
                 </div>
-                <div class="menu-item" onclick="openPage('tablet-info')">
-                    <h3>태블릿 공유기 정보</h3>
-                    <p>태블릿 공유기 정보를 확인합니다</p>
-                </div>
-                <div class="menu-item" onclick="openPage('science-supplies')">
+                <div class="menu-item disabled" onclick="showUpdateMessage('science-supplies')">
                     <h3>과학실 준비물 신청</h3>
-                    <p>과학실 준비물을 신청합니다</p>
-                </div>
-                <div class="menu-item" onclick="openPage('maintenance')">
-                    <h3>컴퓨터 유지보수 신청</h3>
-                    <p>컴퓨터 유지보수를 신청합니다</p>
-                </div>
-                <div class="menu-item" onclick="openPage('toner')">
-                    <h3>토너 신청</h3>
-                    <p>토너를 신청합니다</p>
+                    <p>🔄 업데이트 예정</p>
                 </div>
             </div>
         `;
