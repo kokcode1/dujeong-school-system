@@ -1402,14 +1402,15 @@ function handleWeeklyCellClick(date, period, time, day, currentStatus) {
 }
 
 // 주간 예약 취소
-function cancelWeeklyReservation(date, period) {
+async function cancelWeeklyReservation(date, period) {
     const facilityType = currentFacility === 'computer' ? 'computerRoom' : 'tabletRouter';
+    const collectionName = currentFacility === 'computer' ? 'computerRoomRequests' : 'tabletRouterRequests';
     const storageKey = currentFacility === 'computer' ? 'computerRoomRequests' : 'tabletRouterRequests';
     const facilityRequests = currentFacility === 'computer' ? 
         (requests.computerRoom || []) : 
         (requests.tabletRouter || []);
     
-    const reservationIndex = facilityRequests.findIndex(req => 
+    const reservation = facilityRequests.find(req => 
         req.useDate === date && 
         req.useTime === period && 
         req.requester === currentUser.name && 
@@ -1417,7 +1418,22 @@ function cancelWeeklyReservation(date, period) {
         req.requesterClass == currentUser.class
     );
     
-    if (reservationIndex !== -1) {
+    if (reservation) {
+        // Firebase에서 삭제 (id가 있는 경우)
+        if (reservation.firestoreId) {
+            const db = getDbManager();
+            if (db && db.isConnected()) {
+                try {
+                    await db.deleteDocument(collectionName, reservation.firestoreId);
+                    console.log(`🗑️ Firebase에서 ${facilityType} 예약 삭제됨:`, reservation.firestoreId);
+                } catch (error) {
+                    console.error('❌ Firebase 삭제 오류:', error);
+                }
+            }
+        }
+        
+        // localStorage에서 삭제
+        const reservationIndex = facilityRequests.findIndex(req => req === reservation);
         facilityRequests.splice(reservationIndex, 1);
         localStorage.setItem(storageKey, JSON.stringify(facilityRequests));
         
@@ -1430,6 +1446,7 @@ function cancelWeeklyReservation(date, period) {
         alert('예약이 취소되었습니다.');
         updateWeeklySchedule();
         updateAdminStats();
+        updateMainDashboard(); // 메인 대시보드 업데이트
     }
 }
 
@@ -1538,9 +1555,9 @@ function handleSlotClick(date, period, time, currentStatus) {
 }
 
 // 예약 취소
-function cancelReservation(date, period) {
+async function cancelReservation(date, period) {
     const computerRoomRequests = requests.computerRoom || [];
-    const reservationIndex = computerRoomRequests.findIndex(req => 
+    const reservation = computerRoomRequests.find(req => 
         req.useDate === date && 
         req.useTime === period && 
         req.requester === currentUser.name && 
@@ -1548,7 +1565,22 @@ function cancelReservation(date, period) {
         req.requesterClass == currentUser.class
     );
     
-    if (reservationIndex !== -1) {
+    if (reservation) {
+        // Firebase에서 삭제 (id가 있는 경우)
+        if (reservation.firestoreId) {
+            const db = getDbManager();
+            if (db && db.isConnected()) {
+                try {
+                    await db.deleteDocument('computerRoomRequests', reservation.firestoreId);
+                    console.log('🗑️ Firebase에서 예약 삭제됨:', reservation.firestoreId);
+                } catch (error) {
+                    console.error('❌ Firebase 삭제 오류:', error);
+                }
+            }
+        }
+        
+        // localStorage에서 삭제
+        const reservationIndex = computerRoomRequests.findIndex(req => req === reservation);
         computerRoomRequests.splice(reservationIndex, 1);
         localStorage.setItem('computerRoomRequests', JSON.stringify(computerRoomRequests));
         requests.computerRoom = computerRoomRequests;
@@ -1556,6 +1588,7 @@ function cancelReservation(date, period) {
         alert('예약이 취소되었습니다.');
         updateSchedule();
         updateAdminStats();
+        updateMainDashboard(); // 메인 대시보드 업데이트
     }
 }
 
@@ -1597,7 +1630,12 @@ async function confirmReservation() {
     
     try {
         // 데이터베이스에 저장 (Firebase 또는 localStorage)
-        await db.addDocument(collectionName, reservation);
+        const firestoreId = await db.addDocument(collectionName, reservation);
+        
+        // Firebase ID를 예약 데이터에 추가 (삭제를 위해 필요)
+        if (firestoreId) {
+            reservation.firestoreId = firestoreId;
+        }
         
         // 로컬 requests 객체 즉시 업데이트 (시간표 즉시 반영을 위해)
         if (currentFacility === 'computer') {

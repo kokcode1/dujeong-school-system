@@ -70,6 +70,7 @@ class DatabaseManager {
                 snapshot.forEach(doc => {
                     documents.push({
                         id: doc.id,
+                        firestoreId: doc.id, // 삭제를 위한 별칭
                         ...doc.data()
                     });
                 });
@@ -130,6 +131,7 @@ class DatabaseManager {
                     snapshot.forEach(doc => {
                         documents.push({
                             id: doc.id,
+                            firestoreId: doc.id, // 삭제를 위한 별칭
                             ...doc.data()
                         });
                     });
