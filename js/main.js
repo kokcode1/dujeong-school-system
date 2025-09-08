@@ -425,9 +425,7 @@ function logout() {
 // 업데이트 예정 메시지 표시
 function showUpdateMessage(feature) {
     const messages = {
-        'science-supplies': '과학실 준비물 신청',
-        'maintenance': '컴퓨터 유지보수 신청', 
-        'toner': '토너 신청'
+        'science-supplies': '과학실 준비물 신청'
     };
     
     const featureName = messages[feature] || '해당 기능';
