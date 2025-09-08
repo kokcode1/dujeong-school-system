@@ -414,75 +414,56 @@ const WEEKLY_RESERVATION_LIMIT = 1;
 
 // 현재 주의 사용자 예약 상태 확인
 function getUserReservationStatus(userInfo) {
-    if (!userInfo) return { computer: null, router: null };
+    if (!userInfo) return { computer: [], router: [] };
     
     const today = new Date();
     const thisMonday = new Date(today);
     thisMonday.setDate(today.getDate() - today.getDay() + 1);
     
-    const weekEnd = new Date(thisMonday);
-    weekEnd.setDate(thisMonday.getDate() + 4); // 금요일까지
+    // 이번주와 다음주 예약을 모두 확인 (2주간)
+    const twoWeeksEnd = new Date(thisMonday);
+    twoWeeksEnd.setDate(thisMonday.getDate() + 11); // 다음주 금요일까지
     
     const weekStartStr = thisMonday.toISOString().split('T')[0];
-    const weekEndStr = weekEnd.toISOString().split('T')[0];
+    const twoWeeksEndStr = twoWeeksEnd.toISOString().split('T')[0];
     
     console.log('📅 주간 범위 계산:', {
         today: today.toISOString().split('T')[0],
         thisMonday: weekStartStr,
-        weekEnd: weekEndStr,
+        twoWeeksEnd: twoWeeksEndStr,
         userInfo: userInfo
     });
     
-    // 컴퓨터실 예약 확인
-    const computerReservation = (requests.computerRoom || []).find(req => {
-        const matchesDate = req.useDate >= weekStartStr && req.useDate <= weekEndStr;
+    // 컴퓨터실 예약 확인 (이번주+다음주)
+    const computerReservations = (requests.computerRoom || []).filter(req => {
+        const matchesDate = req.useDate >= weekStartStr && req.useDate <= twoWeeksEndStr;
         const matchesUser = req.requester === userInfo.name;
         const matchesGrade = req.requesterGrade == userInfo.grade;
         const matchesClass = req.requesterClass == userInfo.class;
         const matchesStatus = req.status === 'approved' || req.status === 'pending';
-        
-        console.log('🔍 컴퓨터실 예약 매칭 체크:', {
-            reservation: {
-                useDate: req.useDate,
-                requester: req.requester,
-                requesterGrade: req.requesterGrade,
-                requesterClass: req.requesterClass,
-                status: req.status
-            },
-            weekRange: { weekStartStr, weekEndStr },
-            matchesDate: `${req.useDate} >= ${weekStartStr} && ${req.useDate} <= ${weekEndStr} = ${matchesDate}`,
-            matchesUser, matchesGrade, matchesClass, matchesStatus,
-            allMatch: matchesDate && matchesUser && matchesGrade && matchesClass && matchesStatus
-        });
         
         return matchesDate && matchesUser && matchesGrade && matchesClass && matchesStatus;
     });
     
-    // 공유기 예약 확인
-    const routerReservation = (requests.tabletRouter || []).find(req => {
-        const matchesDate = req.useDate >= weekStartStr && req.useDate <= weekEndStr;
+    // 공유기 예약 확인 (이번주+다음주)
+    const routerReservations = (requests.tabletRouter || []).filter(req => {
+        const matchesDate = req.useDate >= weekStartStr && req.useDate <= twoWeeksEndStr;
         const matchesUser = req.requester === userInfo.name;
         const matchesGrade = req.requesterGrade == userInfo.grade;
         const matchesClass = req.requesterClass == userInfo.class;
         const matchesStatus = req.status === 'approved' || req.status === 'pending';
-        
-        console.log('🔍 공유기 예약 매칭 체크:', {
-            reservation: req,
-            matchesDate, matchesUser, matchesGrade, matchesClass, matchesStatus,
-            allMatch: matchesDate && matchesUser && matchesGrade && matchesClass && matchesStatus
-        });
         
         return matchesDate && matchesUser && matchesGrade && matchesClass && matchesStatus;
     });
     
     console.log('✅ 최종 예약 상태:', {
-        computer: computerReservation,
-        router: routerReservation
+        computer: computerReservations,
+        router: routerReservations
     });
     
     return {
-        computer: computerReservation,
-        router: routerReservation
+        computer: computerReservations,
+        router: routerReservations
     };
 }
 
@@ -1551,6 +1532,7 @@ async function confirmReservation() {
             console.log('✅ 일반 시간표 업데이트 완료');
         }
         updateAdminStats();
+        updateMainDashboard(); // 메인 대시보드 예약 현황 업데이트
     }, 100); // 100ms 후 업데이트
 }
 
@@ -1585,32 +1567,46 @@ function goBack() {
         console.log('📋 requests 객체:', requests);
         
         // 통합 예약 상태 위젯 생성
-        const createReservationWidget = (computerReservation, routerReservation) => {
-            console.log('🎨 위젯 생성 중:', { computerReservation, routerReservation });
+        const createReservationWidget = (computerReservations, routerReservations) => {
+            console.log('🎨 위젯 생성 중:', { computerReservations, routerReservations });
             
-            const formatReservation = (reservation, facilityName) => {
-                if (!reservation) return `<div class="no-reservation">❌ ${facilityName}: 예약 없음</div>`;
+            const formatReservations = (reservations, facilityName) => {
+                if (!reservations || reservations.length === 0) {
+                    return `<div class="no-reservation">❌ ${facilityName}: 예약 없음</div>`;
+                }
                 
-                const date = new Date(reservation.useDate);
-                const dayNames = ['일', '월', '화', '수', '목', '금', '토'];
-                const dayName = dayNames[date.getDay()];
-                
-                return `
-                    <div class="has-reservation-item">
-                        <span class="facility-name">✅ ${facilityName}:</span>
-                        <span class="reservation-details">${date.getMonth() + 1}/${date.getDate()}(${dayName}) ${reservation.useTime}</span>
-                    </div>
-                `;
+                return reservations.map(reservation => {
+                    const date = new Date(reservation.useDate);
+                    const dayNames = ['일', '월', '화', '수', '목', '금', '토'];
+                    const dayName = dayNames[date.getDay()];
+                    
+                    // 이번주/다음주 구분
+                    const today = new Date();
+                    const thisMonday = new Date(today);
+                    thisMonday.setDate(today.getDate() - today.getDay() + 1);
+                    const nextMonday = new Date(thisMonday);
+                    nextMonday.setDate(thisMonday.getDate() + 7);
+                    
+                    const weekLabel = date >= nextMonday ? '[다음주]' : '[이번주]';
+                    
+                    return `
+                        <div class="has-reservation-item">
+                            <span class="facility-name">✅ ${facilityName}:</span>
+                            <span class="reservation-details">${weekLabel} ${date.getMonth() + 1}/${date.getDate()}(${dayName}) ${reservation.useTime}</span>
+                        </div>
+                    `;
+                }).join('');
             };
             
-            const hasAnyReservation = computerReservation || routerReservation;
+            const hasAnyReservation = (computerReservations && computerReservations.length > 0) || 
+                                    (routerReservations && routerReservations.length > 0);
             
             return `
                 <div class="reservation-widget ${hasAnyReservation ? 'has-reservations' : ''}">
-                    <div class="widget-header">📅 이번 주 예약 현황</div>
+                    <div class="widget-header">📅 2주간 예약 현황</div>
                     <div class="reservation-list">
-                        ${formatReservation(computerReservation, '컴퓨터실')}
-                        ${formatReservation(routerReservation, '공유기')}
+                        ${formatReservations(computerReservations, '컴퓨터실')}
+                        ${formatReservations(routerReservations, '공유기')}
                     </div>
                 </div>
             `;
@@ -1696,10 +1692,25 @@ function goBack() {
 
 // 메인 대시보드 업데이트
 function updateMainDashboard() {
+    console.log('📊 updateMainDashboard 호출됨');
+    
     // 현재 메인 메뉴가 표시된 상태인지 확인
     const menuGrid = document.querySelector('.menu-grid');
-    if (menuGrid && currentUser && currentUser.type === 'teacher') {
-        console.log('📊 메인 대시보드 예약 상태 업데이트');
-        goBack(); // 메뉴를 다시 그려서 최신 예약 상태 반영
+    const reservationWidget = document.querySelector('.reservation-widget');
+    
+    if ((menuGrid || reservationWidget) && currentUser && currentUser.type === 'teacher') {
+        console.log('📊 메인 대시보드 예약 상태 업데이트 실행');
+        
+        // 약간의 지연 후 업데이트 (DOM 조작 완료 보장)
+        setTimeout(() => {
+            goBack(); // 메뉴를 다시 그려서 최신 예약 상태 반영
+        }, 50);
+    } else {
+        console.log('📊 업데이트 조건 불충족:', {
+            hasMenuGrid: !!menuGrid,
+            hasReservationWidget: !!reservationWidget,
+            hasCurrentUser: !!currentUser,
+            isTeacher: currentUser?.type === 'teacher'
+        });
     }
 }
