@@ -698,14 +698,10 @@ function showRouterForm() {
         <div class="schedule-container">
             <h2 style="text-align: center; color: #2d3748; margin-bottom: 1.5rem; font-size: 1.75rem; font-weight: 600;">공유기실 사용 신청</h2>
             
-            <div class="facility-info">
-                <div class="facility-name active">
-                    📱 공유기 (늘봄교실3)
-                </div>
-            </div>
-            
             <div class="usage-guide">
-                💡 요일 + 교시 클릭 → 예약 | 주당 최대 2회
+                💡 요일 + 교시 클릭 → 예약 | 주당 최대 2회<br>
+                • 다른 학년 예약 시 해당 학년 선생님과 협의 후 사용<br>
+                • 내 예약(주황색) 다시 클릭 시 취소 가능
             </div>
             
             <div class="date-selector">
@@ -782,14 +778,10 @@ function showComputerRoomForm() {
         <div class="schedule-container">
             <h2 style="text-align: center; color: #2d3748; margin-bottom: 1.5rem; font-size: 1.75rem; font-weight: 600;">컴퓨터실 사용 신청</h2>
             
-            <div class="facility-info">
-                <div class="facility-name active">
-                    💻 컴퓨터실
-                </div>
-            </div>
-            
             <div class="usage-guide">
-                💡 요일 + 교시 클릭 → 예약 | 주당 최대 2회
+                💡 요일 + 교시 클릭 → 예약 | 주당 최대 2회<br>
+                • 다른 학년 예약 시 해당 학년 선생님과 협의 후 사용<br>
+                • 내 예약(파란색) 다시 클릭 시 취소 가능
             </div>
             
             <div class="date-selector">
@@ -871,14 +863,10 @@ function showLibraryForm() {
         <div class="schedule-container">
             <h2 style="text-align: center; color: #2d3748; margin-bottom: 1.5rem; font-size: 1.75rem; font-weight: 600;">도서관 이용 신청</h2>
             
-            <div class="facility-info">
-                <div class="facility-name active">
-                    📚 도서관
-                </div>
-            </div>
-            
             <div class="usage-guide">
-                💡 요일 + 교시 클릭 → 예약 | 학년별 이용시간 다름
+                💡 요일 + 교시 클릭 → 예약 | 학년별 이용시간 다름<br>
+                • 다른 학년 예약 시 해당 학년 선생님과 협의 후 사용<br>
+                • 내 예약(초록색) 다시 클릭 시 취소 가능
             </div>
             
             <div class="date-selector">
@@ -2488,7 +2476,10 @@ function goBack() {
             ${createReservationWidget(reservationStatus.computer, reservationStatus.router, reservationStatus.library)}
             
             <div class="usage-guide">
-                💡 메뉴 클릭 → 시설 예약 | 위 표에서 예약 현황 확인
+                💡 메뉴 클릭 → 시설 예약 | 위 표에서 예약 현황 확인<br>
+                • 다른 학년 예약 시 해당 학년 선생님과 협의 후 사용<br>
+                • 내 예약(파란색/주황색/초록색) 다시 클릭 시 취소 가능<br>
+                
             </div>
             
             <div class="menu-grid">
