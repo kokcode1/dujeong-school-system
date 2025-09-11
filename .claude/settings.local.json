@@ -3,7 +3,19 @@
     "allow": [
       "Bash(git add:*)",
       "Bash(git push:*)",
-      "Bash(git commit:*)"
+      "Bash(git commit:*)",
+      "Read(/D:\\dujeong\\dujeong-school-system/**)",
+      "Read(/D:\\dujeong\\dujeong-school-system/**)",
+      "Read(/D:\\dujeong\\dujeong-school-system\\js/**)",
+      "Read(/D:\\dujeong\\dujeong-school-system\\css/**)",
+      "Read(/D:\\dujeong\\dujeong-school-system\\js/**)",
+      "Read(/D:\\dujeong\\dujeong-school-system\\js/**)",
+      "Read(/D:\\dujeong\\dujeong-school-system/**)",
+      "Read(/D:\\dujeong\\dujeong-school-system\\js/**)",
+      "Read(/D:\\dujeong\\dujeong-school-system\\js/**)",
+      "Read(/D:\\dujeong\\dujeong-school-system\\js/**)",
+      "Read(/D:\\dujeong\\dujeong-school-system\\js/**)",
+      "Read(/D:\\dujeong\\dujeong-school-system\\js/**)"
     ],
     "deny": [],
     "ask": []

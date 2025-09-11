@@ -177,6 +177,18 @@ function setupRealtimeListeners() {
     
     // 컴퓨터실 예약 실시간 감지
     db.setupRealtimeListener('computerRoomRequests', (data) => {
+        console.log('🔄 Firebase에서 컴퓨터실 예약 데이터 수신:', {
+            count: data.length,
+            data: data.map(d => ({ 
+                id: d.id, 
+                firestoreId: d.firestoreId,
+                useDate: d.useDate, 
+                useTime: d.useTime, 
+                requester: d.requester,
+                requesterGrade: d.requesterGrade,
+                requesterClass: d.requesterClass
+            }))
+        });
         requests.computerRoom = data;
         if (document.getElementById('weeklyScheduleContainer')) {
             updateWeeklySchedule();
@@ -1211,14 +1223,34 @@ function getDateFromWeek(year, week) {
 
 // 주간 시간표 테이블 생성
 function generateWeeklyScheduleTable() {
-    const periods = [
-        { name: '1교시', time: '09:00-09:40' },
-        { name: '2교시', time: '09:50-10:30' },
-        { name: '3교시', time: '10:40-11:20' },
-        { name: '4교시', time: '11:30-12:10' },
-        { name: '5교시', time: '13:10-13:50' },
-        { name: '6교시', time: '14:00-14:40' }
-    ];
+    // 학년별 차등 시간표 적용
+    function getPeriodsForGrade(grade) {
+        const basePeriods = [
+            { name: '1교시', time: '08:50-09:30' },
+            { name: '2교시', time: '09:40-10:20' },
+            { name: '3교시', time: '10:40-11:20' }
+        ];
+        
+        // 4-6교시는 학년별로 다름
+        if (grade <= 3) {
+            // 1,2,3학년
+            basePeriods.push(
+                { name: '4교시', time: '12:30-13:10' },
+                { name: '5교시', time: '13:20-14:00' }
+            );
+        } else {
+            // 4,5,6학년
+            basePeriods.push(
+                { name: '4교시', time: '11:30-12:10' },
+                { name: '5교시', time: '13:20-14:00' },
+                { name: '6교시', time: '14:10-14:50' }
+            );
+        }
+        
+        return basePeriods;
+    }
+    
+    const periods = getPeriodsForGrade(currentUser.grade);
     
     const weekdays = ['월', '화', '수', '목', '금'];
     
@@ -1251,6 +1283,18 @@ function generateWeeklyScheduleTable() {
         `;
         
         weekdays.forEach((day, dayIndex) => {
+            // 수요일 6교시 제거 (4-6학년만)
+            if (day === '수' && period.name === '6교시' && currentUser.grade > 3) {
+                tableHTML += `
+                    <td>
+                        <button class="schedule-cell disabled">
+                            수업없음
+                        </button>
+                    </td>
+                `;
+                return;
+            }
+            
             const date = new Date(currentWeekStart);
             date.setDate(currentWeekStart.getDate() + dayIndex);
             const dateStr = date.toISOString().split('T')[0];
@@ -1455,14 +1499,39 @@ function updateSchedule() {
     const selectedDate = document.getElementById('scheduleDate').value;
     const scheduleGrid = document.getElementById('scheduleGrid');
     
-    const timeSlots = [
-        { period: '1교시', time: '09:00-09:40' },
-        { period: '2교시', time: '09:50-10:30' },
-        { period: '3교시', time: '10:40-11:20' },
-        { period: '4교시', time: '11:30-12:10' },
-        { period: '5교시', time: '13:10-13:50' },
-        { period: '6교시', time: '14:00-14:40' }
-    ];
+    // 학년별 차등 시간표 적용
+    function getTimeSlots(grade, dayOfWeek) {
+        const baseSlots = [
+            { period: '1교시', time: '08:50-09:30' },
+            { period: '2교시', time: '09:40-10:20' },
+            { period: '3교시', time: '10:40-11:20' }
+        ];
+        
+        // 4-6교시는 학년별로 다름
+        if (grade <= 3) {
+            // 1,2,3학년
+            baseSlots.push(
+                { period: '4교시', time: '12:30-13:10' },
+                { period: '5교시', time: '13:20-14:00' }
+            );
+        } else {
+            // 4,5,6학년
+            baseSlots.push(
+                { period: '4교시', time: '11:30-12:10' },
+                { period: '5교시', time: '13:20-14:00' },
+                { period: '6교시', time: '14:10-14:50' }
+            );
+        }
+        
+        // 수요일은 6교시 제외
+        if (dayOfWeek === 3 && grade > 3) { // 수요일(3)이고 4-6학년인 경우
+            return baseSlots.slice(0, 5); // 6교시 제거
+        }
+        
+        return baseSlots;
+    }
+    
+    const timeSlots = getTimeSlots(currentUser.grade, new Date(date).getDay());
     
     let gridHTML = '';
     
@@ -1556,7 +1625,11 @@ function handleSlotClick(date, period, time, currentStatus) {
 
 // 예약 취소
 async function cancelReservation(date, period) {
+    console.log('🗑️ 예약 취소 시작:', { date, period, user: currentUser });
+    
     const computerRoomRequests = requests.computerRoom || [];
+    console.log('🔍 현재 컴퓨터실 예약 목록:', computerRoomRequests);
+    
     const reservation = computerRoomRequests.find(req => 
         req.useDate === date && 
         req.useTime === period && 
@@ -1565,30 +1638,72 @@ async function cancelReservation(date, period) {
         req.requesterClass == currentUser.class
     );
     
+    console.log('🎯 찾은 예약:', reservation);
+    
     if (reservation) {
         // Firebase에서 삭제 (id가 있는 경우)
-        if (reservation.firestoreId) {
+        if (reservation.firestoreId || reservation.id) {
             const db = getDbManager();
+            const docId = reservation.firestoreId || reservation.id;
+            console.log('🔥 Firebase 삭제 시도:', { docId, isConnected: db?.isConnected() });
+            
             if (db && db.isConnected()) {
                 try {
-                    await db.deleteDocument('computerRoomRequests', reservation.firestoreId);
-                    console.log('🗑️ Firebase에서 예약 삭제됨:', reservation.firestoreId);
+                    await db.deleteDocument('computerRoomRequests', docId);
+                    console.log('✅ Firebase에서 예약 삭제 성공:', docId);
                 } catch (error) {
                     console.error('❌ Firebase 삭제 오류:', error);
                 }
+            } else {
+                console.log('⚠️ Firebase 미연결 - localStorage만 삭제');
             }
+        } else {
+            console.log('⚠️ Firebase ID 없음 - localStorage만 삭제');
         }
         
         // localStorage에서 삭제
         const reservationIndex = computerRoomRequests.findIndex(req => req === reservation);
-        computerRoomRequests.splice(reservationIndex, 1);
-        localStorage.setItem('computerRoomRequests', JSON.stringify(computerRoomRequests));
-        requests.computerRoom = computerRoomRequests;
+        console.log('📍 삭제할 예약 인덱스:', reservationIndex);
+        
+        if (reservationIndex !== -1) {
+            computerRoomRequests.splice(reservationIndex, 1);
+            localStorage.setItem('computerRoomRequests', JSON.stringify(computerRoomRequests));
+            requests.computerRoom = computerRoomRequests;
+            console.log('✅ localStorage에서 예약 삭제 완료');
+        }
         
         alert('예약이 취소되었습니다.');
         updateSchedule();
         updateAdminStats();
         updateMainDashboard(); // 메인 대시보드 업데이트
+        
+        // 취소 후 Firebase에서 데이터 확인
+        if (reservation.firestoreId || reservation.id) {
+            const docId = reservation.firestoreId || reservation.id;
+            setTimeout(async () => {
+                const db = getDbManager();
+                if (db && db.isConnected()) {
+                    try {
+                        const allData = await db.getDocuments('computerRoomRequests');
+                        const stillExists = allData.find(d => d.id === docId || d.firestoreId === docId);
+                        console.log('🔍 삭제 확인:', {
+                            docId,
+                            stillExists: !!stillExists,
+                            totalCount: allData.length
+                        });
+                        if (stillExists) {
+                            console.error('⚠️ 경고: 삭제된 예약이 Firebase에 여전히 존재함!', stillExists);
+                        }
+                    } catch (error) {
+                        console.error('❌ 삭제 확인 중 오류:', error);
+                    }
+                }
+            }, 2000); // 2초 후 확인
+        }
+        
+        console.log('🔄 업데이트 완료 - 현재 예약 상태:', requests.computerRoom);
+    } else {
+        console.log('❌ 취소할 예약을 찾을 수 없음');
     }
 }
 

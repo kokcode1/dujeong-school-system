@@ -96,11 +96,33 @@ class DatabaseManager {
 
     // 데이터 삭제
     async deleteDocument(collectionName, docId, localData = null) {
+        console.log(`🗑️ 삭제 요청 시작:`, {
+            collectionName,
+            docId,
+            isFirebaseEnabled: this.isFirebaseEnabled,
+            hasDb: !!this.db,
+            hasLocalData: !!localData
+        });
+        
         try {
             if (this.isFirebaseEnabled && this.db) {
-                // Firestore에서 삭제
-                await this.getCollection(collectionName).doc(docId).delete();
-                console.log(`🗑️ Firestore에서 삭제됨: ${collectionName}/${docId}`);
+                console.log(`🔥 Firestore 삭제 시도: ${collectionName}/${docId}`);
+                
+                // 삭제 전 문서 존재 확인
+                const docRef = this.getCollection(collectionName).doc(docId);
+                const docSnapshot = await docRef.get();
+                console.log(`📋 문서 존재 확인:`, {
+                    exists: docSnapshot.exists,
+                    docId: docId,
+                    data: docSnapshot.exists ? docSnapshot.data() : null
+                });
+                
+                if (docSnapshot.exists) {
+                    await docRef.delete();
+                    console.log(`✅ Firestore에서 삭제 완료: ${collectionName}/${docId}`);
+                } else {
+                    console.log(`⚠️ 문서가 존재하지 않음: ${collectionName}/${docId}`);
+                }
                 
                 // 로컬 캐시 업데이트
                 this.updateLocalCache(collectionName);
@@ -113,10 +135,11 @@ class DatabaseManager {
                 console.log(`💾 localStorage에서 삭제됨: ${collectionName}`);
             }
         } catch (error) {
-            console.error('데이터 삭제 오류:', error);
+            console.error(`❌ 데이터 삭제 오류 (${collectionName}/${docId}):`, error);
             // localStorage로 폴백
             if (localData) {
                 localStorage.setItem(collectionName, JSON.stringify(localData));
+                console.log(`🔄 localStorage 폴백으로 삭제 처리`);
             }
         }
     }
