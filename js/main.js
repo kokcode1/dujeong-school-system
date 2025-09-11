@@ -68,7 +68,8 @@ let requests = {
     science: JSON.parse(localStorage.getItem('scienceRequests') || '[]'),
     maintenance: JSON.parse(localStorage.getItem('maintenanceRequests') || '[]'),
     toner: JSON.parse(localStorage.getItem('tonerRequests') || '[]'),
-    tabletRouter: JSON.parse(localStorage.getItem('tabletRouterRequests') || '[]')
+    tabletRouter: JSON.parse(localStorage.getItem('tabletRouterRequests') || '[]'),
+    library: JSON.parse(localStorage.getItem('libraryRequests') || '[]')
 };
 
 // 태블릿 정보 데이터
@@ -200,6 +201,16 @@ function setupRealtimeListeners() {
     // 공유기 예약 실시간 감지  
     db.setupRealtimeListener('tabletRouterRequests', (data) => {
         requests.tabletRouter = data;
+        if (document.getElementById('weeklyScheduleContainer')) {
+            updateWeeklySchedule();
+        }
+        updateAdminStats();
+        updateMainDashboard(); // 메인 대시보드 업데이트
+    });
+    
+    // 도서관 예약 실시간 감지
+    db.setupRealtimeListener('libraryRequests', (data) => {
+        requests.library = data;
         if (document.getElementById('weeklyScheduleContainer')) {
             updateWeeklySchedule();
         }
@@ -363,7 +374,7 @@ function handleLogin(e) {
 function showUserSection() {
     document.getElementById('loginSection').style.display = 'none';
     document.getElementById('userInfo').style.display = 'flex';
-    document.getElementById('userName').textContent = currentUser.name + '님';
+    document.getElementById('userName').textContent = currentUser.name;
     
     if (currentUser.type === 'teacher') {
         document.getElementById('teacherSection').style.display = 'block';
@@ -452,6 +463,12 @@ function openPage(page) {
         case 'computer-room':
             showComputerRoomForm();
             break;
+        case 'router':
+            showRouterForm();
+            break;
+        case 'library':
+            showLibraryForm();
+            break;
         case 'tablet-info':
             showTabletInfo();
             break;
@@ -503,18 +520,25 @@ const defaultAssignments = {
         '수': { '1교시': '3', '2교시': '3', '3교시': '3', '4교시': '3', '5교시': '3', '6교시': '3' },
         '목': { '1교시': '4', '2교시': '4', '3교시': '4', '4교시': '4', '5교시': '4', '6교시': '4' },
         '금': { '1교시': '4', '2교시': '4', '3교시': '4', '4교시': '4', '5교시': '4', '6교시': '4' }
+    },
+    library: {
+        '월': { '1교시': '4', '2교시': '4', '3교시': '4', '4교시': '사서도우미', '5교시': '4', '6교시': '6' },
+        '화': { '1교시': '3', '2교시': '3', '3교시': '3', '4교시': '사서도우미', '5교시': '3', '6교시': '6' },
+        '수': { '1교시': '5', '2교시': '5', '3교시': '5', '4교시': '사서도우미', '5교시': '5', '6교시': '6' },
+        '목': { '1교시': '2', '2교시': '2', '3교시': '2', '4교시': '사서도우미', '5교시': '2', '6교시': '6' },
+        '금': { '1교시': '1', '2교시': '1', '3교시': '1', '4교시': '사서도우미', '5교시': '1', '6교시': '6' }
     }
 };
 
-let currentFacility = 'computer'; // 'computer' 또는 'router'
+let currentFacility = 'computer'; // 'computer', 'router', 또는 'library'
 let currentWeekStart = null;
 
-// 주간 예약 제한 (개인당 시설별 1회)
-const WEEKLY_RESERVATION_LIMIT = 1;
+// 주간 예약 제한 (개인당 시설별 2회)
+const WEEKLY_RESERVATION_LIMIT = 2;
 
 // 현재 주의 사용자 예약 상태 확인
 function getUserReservationStatus(userInfo) {
-    if (!userInfo) return { computer: [], router: [] };
+    if (!userInfo) return { computer: [], router: [], library: [] };
     
     const today = new Date();
     const thisMonday = new Date(today);
@@ -583,14 +607,34 @@ function getUserReservationStatus(userInfo) {
         return matchesDate && matchesUser && matchesGrade && matchesClass && matchesStatus;
     });
     
+    // 도서관 예약 확인 (이번주+다음주)
+    const libraryReservations = (requests.library || []).filter(req => {
+        const matchesDate = req.useDate >= weekStartStr && req.useDate <= twoWeeksEndStr;
+        const matchesUser = req.requester === userInfo.name;
+        const matchesGrade = req.requesterGrade == userInfo.grade;
+        const matchesClass = req.requesterClass == userInfo.class;
+        const matchesStatus = req.status === 'approved' || req.status === 'pending';
+        
+        return matchesDate && matchesUser && matchesGrade && matchesClass && matchesStatus;
+    });
+    
     console.log('✅ 최종 예약 상태:', {
         computer: computerReservations,
-        router: routerReservations
+        router: routerReservations,
+        library: libraryReservations
+    });
+    
+    console.log('🔍 도서관 예약 디버깅:', {
+        totalLibraryRequests: requests.library?.length || 0,
+        filteredLibraryReservations: libraryReservations.length,
+        sampleLibraryRequest: requests.library?.[0],
+        userInfo: userInfo
     });
     
     return {
         computer: computerReservations,
-        router: routerReservations
+        router: routerReservations,
+        library: libraryReservations
     };
 }
 
@@ -598,7 +642,9 @@ function getUserReservationStatus(userInfo) {
 function getWeeklyReservationCount(weekStart, facility, userInfo) {
     const facilityRequests = facility === 'computer' ? 
         (requests.computerRoom || []) : 
-        (requests.tabletRouter || []);
+        facility === 'router' ? 
+        (requests.tabletRouter || []) :
+        (requests.library || []);
     
     // 주간 범위 계산 (월요일부터 금요일까지)
     const weekEnd = new Date(weekStart);
@@ -607,14 +653,15 @@ function getWeeklyReservationCount(weekStart, facility, userInfo) {
     const weekStartStr = weekStart.toISOString().split('T')[0];
     const weekEndStr = weekEnd.toISOString().split('T')[0];
     
-    // 해당 주간의 개인 예약 개수 세기
+    // 해당 주간의 개인 예약 개수 세기 (다른 학년 협의 예약 제외)
     const userReservations = facilityRequests.filter(req => 
         req.useDate >= weekStartStr && 
         req.useDate <= weekEndStr &&
         req.requester === userInfo.name &&
         req.requesterGrade == userInfo.grade &&
         req.requesterClass == userInfo.class &&
-        (req.status === 'approved' || req.status === 'pending')
+        (req.status === 'approved' || req.status === 'pending') &&
+        !req.crossGradeReservation  // 협의 예약은 횟수에서 제외
     );
     
     console.log(`📊 ${facility} 주간 예약 확인:`, {
@@ -631,14 +678,99 @@ function getWeeklyReservationCount(weekStart, facility, userInfo) {
 // 주간 예약 제한 체크
 function checkWeeklyReservationLimit(weekStart, facility, userInfo) {
     const currentCount = getWeeklyReservationCount(weekStart, facility, userInfo);
-    const facilityName = facility === 'computer' ? '컴퓨터실' : '공유기';
+    const facilityName = facility === 'computer' ? '컴퓨터실' : 
+                         facility === 'router' ? '공유기' : '도서관';
     
     if (currentCount >= WEEKLY_RESERVATION_LIMIT) {
-        alert(`⚠️ ${facilityName} 주간 사용 제한\n\n개인당 1주일에 1번만 예약 가능합니다.\n현재 이번 주 사용 횟수: ${currentCount}/${WEEKLY_RESERVATION_LIMIT}\n\n기존 예약을 취소한 후 다시 시도해주세요.`);
+        alert(`⚠️ ${facilityName} 주간 사용 제한\n\n개인당 1주일에 최대 2번까지 예약 가능합니다.\n현재 이번 주 사용 횟수: ${currentCount}/${WEEKLY_RESERVATION_LIMIT}\n\n기존 예약을 취소한 후 다시 시도해주세요.`);
         return false;
     }
     
     return true;
+}
+
+// 공유기실 신청 폼 - 주간 시간표 형태
+function showRouterForm() {
+    const content = document.querySelector('main');
+    
+    content.innerHTML = `
+        <button onclick="goBack()" class="back-btn">← 돌아가기</button>
+        <div class="schedule-container">
+            <h2 style="text-align: center; color: #2d3748; margin-bottom: 1.5rem; font-size: 1.75rem; font-weight: 600;">공유기실 사용 신청</h2>
+            
+            <div class="facility-info">
+                <div class="facility-name active">
+                    📱 공유기 (늘봄교실3)
+                </div>
+            </div>
+            
+            <div class="usage-guide">
+                💡 요일 + 교시 클릭 → 예약 | 주당 최대 2회
+            </div>
+            
+            <div class="date-selector">
+                <label>주차 선택:</label>
+                <div class="week-buttons">
+                    <button id="thisWeekBtn" class="week-btn active" onclick="selectWeek('this')">이번주</button>
+                    <button id="nextWeekBtn" class="week-btn" onclick="selectWeek('next')">다음주</button>
+                </div>
+            </div>
+            
+            <div class="usage-guide">
+                💡 초록(예약가능) | 빨강(예약됨) | 파랑/주황/초록(내예약) | 노랑(우리학년) | 회색(다른학년)
+            </div>
+            
+            <div class="schedule-legend">
+                <div class="legend-item">
+                    <div class="legend-color legend-available"></div>
+                    <span>예약 가능</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color legend-occupied"></div>
+                    <span>예약됨</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color legend-mine"></div>
+                    <span>내 예약</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color legend-assigned"></div>
+                    <span>우리 학년 전용</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color legend-default"></div>
+                    <span>다른 학년 전용</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color legend-limit"></div>
+                    <span>주간 한도 달성</span>
+                </div>
+            </div>
+            
+            <div id="weeklyScheduleContainer"></div>
+        </div>
+        
+        <!-- 예약 모달 -->
+        <div id="reservationModal" class="reservation-modal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3 id="modalTitle"></h3>
+                    <p id="modalSubtitle"></p>
+                </div>
+                <div class="modal-actions">
+                    <button onclick="confirmReservation()" class="modal-btn primary">예약하기</button>
+                    <button onclick="closeModal()" class="modal-btn secondary">취소</button>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    // 공유기실로 설정
+    currentFacility = 'router';
+    
+    // 주차 선택기 초기화 및 시간표 표시
+    initializeWeekSelector();
+    updateWeeklySchedule();
 }
 
 // 컴퓨터실 신청 폼 - 주간 시간표 형태
@@ -648,22 +780,28 @@ function showComputerRoomForm() {
     content.innerHTML = `
         <button onclick="goBack()" class="back-btn">← 돌아가기</button>
         <div class="schedule-container">
-            <h2 style="text-align: center; color: #2d3748; margin-bottom: 1.5rem; font-size: 1.75rem; font-weight: 600;">시설 사용 신청</h2>
+            <h2 style="text-align: center; color: #2d3748; margin-bottom: 1.5rem; font-size: 1.75rem; font-weight: 600;">컴퓨터실 사용 신청</h2>
             
-            <div class="facility-tabs">
-                <div class="facility-tab active" onclick="switchFacility('computer')">
-                    컴퓨터실
-                </div>
-                <div class="facility-tab" onclick="switchFacility('router')">
-                    공유기 (늘봄교실3)
+            <div class="facility-info">
+                <div class="facility-name active">
+                    💻 컴퓨터실
                 </div>
             </div>
             
+            <div class="usage-guide">
+                💡 요일 + 교시 클릭 → 예약 | 주당 최대 2회
+            </div>
+            
             <div class="date-selector">
-                <label for="weekSelector">주차 선택:</label>
-                <select id="weekSelector" onchange="updateWeeklySchedule()">
-                    <!-- 옵션은 JavaScript에서 동적으로 생성됩니다 -->
-                </select>
+                <label>주차 선택:</label>
+                <div class="week-buttons">
+                    <button id="thisWeekBtn" class="week-btn active" onclick="selectWeek('this')">이번주</button>
+                    <button id="nextWeekBtn" class="week-btn" onclick="selectWeek('next')">다음주</button>
+                </div>
+            </div>
+            
+            <div class="usage-guide">
+                💡 초록(예약가능) | 빨강(예약됨) | 파랑/주황/초록(내예약) | 노랑(우리학년) | 회색(다른학년)
             </div>
             
             <div class="schedule-legend">
@@ -716,12 +854,104 @@ function showComputerRoomForm() {
         </div>
     `;
     
+    // 컴퓨터실로 시설 변경
+    currentFacility = 'computer';
+    
     // 현재 주차로 초기화
     initializeWeekSelector();
     updateWeeklySchedule();
 }
 
 // 태블릿 정보 보기
+function showLibraryForm() {
+    const content = document.querySelector('main');
+    
+    content.innerHTML = `
+        <button onclick="goBack()" class="back-btn">← 돌아가기</button>
+        <div class="schedule-container">
+            <h2 style="text-align: center; color: #2d3748; margin-bottom: 1.5rem; font-size: 1.75rem; font-weight: 600;">도서관 이용 신청</h2>
+            
+            <div class="facility-info">
+                <div class="facility-name active">
+                    📚 도서관
+                </div>
+            </div>
+            
+            <div class="usage-guide">
+                💡 요일 + 교시 클릭 → 예약 | 학년별 이용시간 다름
+            </div>
+            
+            <div class="date-selector">
+                <label>주차 선택:</label>
+                <div class="week-buttons">
+                    <button id="thisWeekBtn" class="week-btn active" onclick="selectWeek('this')">이번주</button>
+                    <button id="nextWeekBtn" class="week-btn" onclick="selectWeek('next')">다음주</button>
+                </div>
+            </div>
+            
+            <div class="usage-guide">
+                💡 초록(예약가능) | 빨강(예약됨) | 파랑/주황/초록(내예약) | 노랑(우리학년) | 회색(다른학년)
+            </div>
+            
+            <div class="schedule-legend">
+                <div class="legend-item">
+                    <div class="legend-color legend-available"></div>
+                    <span>예약 가능</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color legend-occupied"></div>
+                    <span>예약됨</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color legend-my-reservation"></div>
+                    <span>내 예약</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color legend-assigned"></div>
+                    <span>학년 전용</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color legend-other-grade"></div>
+                    <span>다른 학년</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color legend-disabled"></div>
+                    <span>사서도우미 시간</span>
+                </div>
+            </div>
+            
+            <div id="weeklyScheduleContainer">
+                <!-- 주간 시간표가 여기에 동적으로 생성됩니다 -->
+            </div>
+            
+        </div>
+        
+        <!-- 예약 확인 모달 -->
+        <div id="reservationModal" class="reservation-modal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3 id="modalTitle">도서관 예약</h3>
+                    <p id="modalSubtitle">선택한 시간에 예약하시겠습니까?</p>
+                </div>
+                <div class="modal-form">
+                    <!-- 사용목적 입력 필드 제거됨 -->
+                </div>
+                <div class="modal-actions">
+                    <button class="modal-btn secondary" onclick="closeReservationModal()">취소</button>
+                    <button class="modal-btn primary" onclick="confirmReservation()">예약하기</button>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    // 도서관으로 시설 변경
+    currentFacility = 'library';
+    
+    // 현재 주차로 초기화
+    initializeWeekSelector();
+    updateWeeklySchedule();
+}
+
 function showTabletInfo() {
     const content = document.querySelector('main');
     content.innerHTML = `
@@ -1091,85 +1321,93 @@ function updateAdminStats() {
 }
 
 // 시설 전환
-function switchFacility(facility) {
-    currentFacility = facility;
-    
-    // 탭 활성화 상태 변경
-    document.querySelectorAll('.facility-tab').forEach(tab => {
-        tab.classList.remove('active');
-    });
-    event.target.classList.add('active');
-    
-    console.log(`🔄 시설 전환: ${facility}`);
-    
-    // 시간표 업데이트 (제한 상태 재계산 포함)
-    updateWeeklySchedule();
-}
+// switchFacility 함수는 더 이상 사용하지 않음 (각 시설별 전용 페이지로 분리)
+// function switchFacility(facility) {
+//     currentFacility = facility;
+//     
+//     // 탭 활성화 상태 변경
+//     document.querySelectorAll('.facility-tab').forEach(tab => {
+//         tab.classList.remove('active');
+//     });
+//     event.target.classList.add('active');
+//     
+//     console.log(`🔄 시설 전환: ${facility}`);
+//     
+//     // 시간표 업데이트 (제한 상태 재계산 포함)
+//     updateWeeklySchedule();
+// }
 
 // 주차 선택기 초기화
 function initializeWeekSelector() {
-    const weekSelector = document.getElementById('weekSelector');
-    if (!weekSelector) {
-        console.error('weekSelector 요소를 찾을 수 없습니다.');
+    const thisWeekBtn = document.getElementById('thisWeekBtn');
+    const nextWeekBtn = document.getElementById('nextWeekBtn');
+    
+    if (!thisWeekBtn || !nextWeekBtn) {
+        console.error('주차 버튼을 찾을 수 없습니다.');
         return;
     }
     
     const today = new Date();
-    const dayOfWeek = today.getDay(); // 0: 일요일, 1: 월요일, ..., 6: 토요일
     
-    // 이번 주의 월요일 구하기
-    const thisMonday = new Date(today);
-    thisMonday.setDate(today.getDate() - today.getDay() + 1);
+    // 대시보드와 동일한 방식으로 ISO 주차 기반 월요일 계산
+    const dashboardMonday = new Date(today);
+    dashboardMonday.setDate(today.getDate() - today.getDay() + 1);
+    
+    const thisYear = dashboardMonday.getFullYear();
+    const thisWeekNumber = getWeekNumber(dashboardMonday);
+    const thisMonday = getDateFromWeek(thisYear, thisWeekNumber);
     
     // 다음 주의 월요일 구하기
     const nextMonday = new Date(thisMonday);
     nextMonday.setDate(thisMonday.getDate() + 7);
     
-    // 주차 선택기 옵션 설정
-    setupWeekSelectorOptions(weekSelector, thisMonday, nextMonday, dayOfWeek >= 4); // 목요일(4)부터 다음주 가능
+    // 버튼 텍스트 업데이트 (날짜 포함)
+    thisWeekBtn.textContent = `이번주 (${thisMonday.getMonth() + 1}/${thisMonday.getDate()})`;
+    nextWeekBtn.textContent = `다음주 (${nextMonday.getMonth() + 1}/${nextMonday.getDate()})`;
     
     // 기본값 설정 (이번 주)
-    const thisYear = thisMonday.getFullYear();
-    const thisWeekNumber = getWeekNumber(thisMonday);
-    const thisWeekValue = `${thisYear}-W${thisWeekNumber.toString().padStart(2, '0')}`;
-    
-    weekSelector.value = thisWeekValue;
     currentWeekStart = new Date(thisMonday);
+    window.currentWeekMode = 'this'; // 현재 선택된 주 저장
     
-    console.log('📅 주차 선택기 초기화:', thisWeekValue, thisMonday);
-    console.log('🗓️ 다음주 신청 가능 여부:', dayOfWeek >= 4 ? '가능 (목요일 이후)' : '불가능 (수요일 이전)');
+    console.log('📅 컴퓨터실 주차 버튼 초기화:', thisMonday.toISOString().split('T')[0]);
+    console.log('🗓️ 다음주 신청 가능 여부: 항상 가능');
 }
 
-// 주차 선택기 옵션 설정
-function setupWeekSelectorOptions(weekSelector, thisMonday, nextMonday, canSelectNextWeek) {
-    // 기존 옵션 제거
-    weekSelector.innerHTML = '';
+// 주차 선택 함수 (버튼용)
+function selectWeek(weekType) {
+    const thisWeekBtn = document.getElementById('thisWeekBtn');
+    const nextWeekBtn = document.getElementById('nextWeekBtn');
     
-    // 이번 주 추가
-    const thisYear = thisMonday.getFullYear();
-    const thisWeekNumber = getWeekNumber(thisMonday);
-    const thisWeekValue = `${thisYear}-W${thisWeekNumber.toString().padStart(2, '0')}`;
-    const thisWeekText = `이번 주 (${thisMonday.getMonth() + 1}/${thisMonday.getDate()})`;
+    // 버튼 상태 업데이트
+    thisWeekBtn.classList.remove('active');
+    nextWeekBtn.classList.remove('active');
     
-    const thisWeekOption = document.createElement('option');
-    thisWeekOption.value = thisWeekValue;
-    thisWeekOption.textContent = thisWeekText;
-    weekSelector.appendChild(thisWeekOption);
+    const today = new Date();
     
-    // 다음 주 추가 (목요일부터 가능)
-    if (canSelectNextWeek) {
-        const nextYear = nextMonday.getFullYear();
-        const nextWeekNumber = getWeekNumber(nextMonday);
-        const nextWeekValue = `${nextYear}-W${nextWeekNumber.toString().padStart(2, '0')}`;
-        const nextWeekText = `다음 주 (${nextMonday.getMonth() + 1}/${nextMonday.getDate()})`;
-        
-        const nextWeekOption = document.createElement('option');
-        nextWeekOption.value = nextWeekValue;
-        nextWeekOption.textContent = nextWeekText;
-        weekSelector.appendChild(nextWeekOption);
+    // 대시보드와 동일한 방식으로 ISO 주차 기반 월요일 계산
+    const dashboardMonday = new Date(today);
+    dashboardMonday.setDate(today.getDate() - today.getDay() + 1);
+    
+    const thisYear = dashboardMonday.getFullYear();
+    const thisWeekNumber = getWeekNumber(dashboardMonday);
+    const thisMonday = getDateFromWeek(thisYear, thisWeekNumber);
+    
+    if (weekType === 'this') {
+        thisWeekBtn.classList.add('active');
+        currentWeekStart = new Date(thisMonday);
+        window.currentWeekMode = 'this';
+        console.log('📅 이번주 선택:', thisMonday.toISOString().split('T')[0]);
+    } else if (weekType === 'next') {
+        nextWeekBtn.classList.add('active');
+        const nextMonday = new Date(thisMonday);
+        nextMonday.setDate(thisMonday.getDate() + 7);
+        currentWeekStart = new Date(nextMonday);
+        window.currentWeekMode = 'next';
+        console.log('📅 다음주 선택:', nextMonday.toISOString().split('T')[0]);
     }
     
-    // select 요소는 이미 올바른 태그이므로 type 변경 불필요
+    // 시간표 업데이트
+    updateWeeklySchedule();
 }
 
 // 주차 번호 계산
@@ -1183,29 +1421,24 @@ function getWeekNumber(date) {
 
 // 주간 시간표 업데이트
 function updateWeeklySchedule() {
-    const weekSelector = document.getElementById('weekSelector');
     const container = document.getElementById('weeklyScheduleContainer');
     
-    if (!weekSelector || !container) {
-        console.error('주간 시간표 요소들을 찾을 수 없습니다.');
+    if (!container) {
+        console.error('주간 시간표 컨테이너를 찾을 수 없습니다.');
         return;
     }
     
-    if (!weekSelector.value) {
+    if (!currentWeekStart) {
         console.log('주차가 선택되지 않았습니다.');
         return;
     }
     
     try {
-        // 선택된 주의 월요일 계산
-        const [year, week] = weekSelector.value.split('-W');
-        const monday = getDateFromWeek(parseInt(year), parseInt(week));
-        currentWeekStart = monday;
-        
         const scheduleTable = generateWeeklyScheduleTable();
         container.innerHTML = scheduleTable;
         
-        console.log('📅 주간 시간표 업데이트 완료:', weekSelector.value);
+        const weekMode = window.currentWeekMode || 'this';
+        console.log('📅 주간 시간표 업데이트 완료:', weekMode === 'this' ? '이번주' : '다음주');
         console.log('📊 현재 requests 상태:', requests);
     } catch (error) {
         console.error('주간 시간표 업데이트 오류:', error);
@@ -1223,28 +1456,47 @@ function getDateFromWeek(year, week) {
 
 // 주간 시간표 테이블 생성
 function generateWeeklyScheduleTable() {
-    // 학년별 차등 시간표 적용
+    // 학년별/시설별 차등 시간표 적용
     function getPeriodsForGrade(grade) {
         const basePeriods = [
             { name: '1교시', time: '08:50-09:30' },
-            { name: '2교시', time: '09:40-10:20' },
+            { name: '2교시', time: currentFacility === 'library' ? '09:30-10:20' : '09:40-10:20' },
             { name: '3교시', time: '10:40-11:20' }
         ];
         
-        // 4-6교시는 학년별로 다름
-        if (grade <= 3) {
-            // 1,2,3학년
-            basePeriods.push(
-                { name: '4교시', time: '12:30-13:10' },
-                { name: '5교시', time: '13:20-14:00' }
-            );
+        if (currentFacility === 'library') {
+            // 도서관: 학년별 차등 시간표 (컴퓨터실과 동일한 방식)
+            if (grade <= 3) {
+                // 1,2,3학년 (저학년)
+                basePeriods.push(
+                    { name: '4교시', time: '12:30-13:10' },
+                    { name: '5교시', time: '13:20-14:00' },
+                    { name: '6교시', time: '14:10-14:50' }
+                );
+            } else {
+                // 4,5,6학년 (고학년)
+                basePeriods.push(
+                    { name: '4교시', time: '11:30-12:10' },
+                    { name: '5교시', time: '13:20-14:00' },
+                    { name: '6교시', time: '14:10-14:50' }
+                );
+            }
         } else {
-            // 4,5,6학년
-            basePeriods.push(
-                { name: '4교시', time: '11:30-12:10' },
-                { name: '5교시', time: '13:20-14:00' },
-                { name: '6교시', time: '14:10-14:50' }
-            );
+            // 컴퓨터실/공유기: 기존 로직
+            if (grade <= 3) {
+                // 1,2,3학년
+                basePeriods.push(
+                    { name: '4교시', time: '12:30-13:10' },
+                    { name: '5교시', time: '13:20-14:00' }
+                );
+            } else {
+                // 4,5,6학년
+                basePeriods.push(
+                    { name: '4교시', time: '11:30-12:10' },
+                    { name: '5교시', time: '13:20-14:00' },
+                    { name: '6교시', time: '14:10-14:50' }
+                );
+            }
         }
         
         return basePeriods;
@@ -1283,8 +1535,8 @@ function generateWeeklyScheduleTable() {
         `;
         
         weekdays.forEach((day, dayIndex) => {
-            // 수요일 6교시 제거 (4-6학년만)
-            if (day === '수' && period.name === '6교시' && currentUser.grade > 3) {
+            // 컴퓨터실: 수요일 6교시 제거 (4-6학년만)
+            if (currentFacility === 'computer' && day === '수' && period.name === '6교시' && currentUser.grade > 3) {
                 tableHTML += `
                     <td>
                         <button class="schedule-cell disabled">
@@ -1304,7 +1556,7 @@ function generateWeeklyScheduleTable() {
             const cellData = cellStatus.grade ? `data-grade="${cellStatus.grade}"` : '';
             const onClick = cellStatus.clickable ? 
                 `onclick="handleWeeklyCellClick('${dateStr}', '${period.name}', '${period.time}', '${day}', '${cellClass}')"` : 
-                (cellClass === 'other-grade' ? `onclick="showCrossGradeConfirmation('${dateStr}', '${period.name}', '${period.time}', '${day}')"` : '');
+                (cellClass === 'default-assigned' ? `onclick="showCrossGradeConfirmation('${dateStr}', '${period.name}', '${period.time}', '${day}')"` : '');
             
             // 텍스트는 한 곳에서만 표시 - CSS에서 처리하지 않고 여기서 직접 표시
             const displayText = cellStatus.content || '';
@@ -1334,7 +1586,9 @@ function getWeeklyCellStatus(day, period, dateStr) {
     const facilityType = currentFacility === 'computer' ? 'computerRoom' : 'router';
     const facilityRequests = currentFacility === 'computer' ? 
         (requests.computerRoom || []) : 
-        (requests.tabletRouter || []);
+        currentFacility === 'router' ?
+        (requests.tabletRouter || []) :
+        (requests.library || []);
     
     console.log(`🔍 셀 상태 확인: ${day} ${period} ${dateStr}`, {
         facilityRequests: facilityRequests,
@@ -1356,19 +1610,24 @@ function getWeeklyCellStatus(day, period, dateStr) {
             existingReservation.requesterGrade == currentUser.grade && 
             existingReservation.requesterClass == currentUser.class) {
             console.log(`✅ 내 예약 확인됨`);
+            // 협의 예약인지 확인
+            const displayText = existingReservation.crossGradeReservation ? '내 예약(협의)' : '내 예약';
             return { 
                 status: 'my-reservation', 
-                content: '내 예약',
+                content: displayText,
                 clickable: true 
             };
         } else {
             console.log(`❌ 다른 사람 예약`);
-            const gradeClass = existingReservation.requesterGrade && existingReservation.requesterClass ? 
-                `${existingReservation.requesterGrade}-${existingReservation.requesterClass}` : 
-                existingReservation.requester;
+            // 협의 예약인 경우 displayName 사용, 아니면 기존 로직
+            const displayText = existingReservation.crossGradeReservation && existingReservation.displayName ? 
+                existingReservation.displayName : 
+                (existingReservation.requesterGrade && existingReservation.requesterClass ? 
+                    `${existingReservation.requesterGrade}-${existingReservation.requesterClass}` : 
+                    existingReservation.requester);
             return { 
                 status: 'occupied', 
-                content: gradeClass,
+                content: displayText,
                 clickable: false 
             };
         }
@@ -1379,6 +1638,15 @@ function getWeeklyCellStatus(day, period, dateStr) {
     const assignedGrade = dayAssignments ? dayAssignments[period] : null;
     
     if (assignedGrade) {
+        // 사서도우미 시간 처리 (도서관만)
+        if (currentFacility === 'library' && assignedGrade === '사서도우미') {
+            return {
+                status: 'disabled',
+                content: '사서도우미 근무시간',
+                clickable: false
+            };
+        }
+        
         // 여러 학년 지원 (쉼표로 구분)
         const assignedGrades = assignedGrade.split(',');
         const canAccess = currentUser && currentUser.grade && 
@@ -1429,15 +1697,32 @@ function handleWeeklyCellClick(date, period, time, day, currentStatus) {
         return;
     }
     
-    // 새 예약 - 주간 제한 체크
-    if (!checkWeeklyReservationLimit(currentWeekStart, currentFacility, currentUser)) {
-        return; // 제한 초과 시 예약 중단
+    if (currentStatus === 'disabled') {
+        alert('이 시간은 사서도우미 근무시간입니다.');
+        return;
+    }
+    
+    // 현재 예약 개수 확인
+    const currentCount = getWeeklyReservationCount(currentWeekStart, currentFacility, currentUser);
+    
+    // 2번째 예약부터는 같은 학년 시간대에서 다른 선생님 허락 확인
+    if (currentCount >= 1 && currentStatus === 'assigned-available') {
+        const confirmed = confirm('이미 이번 주에 정해진 시간에 예약이 1번 되었습니다.\n\n같은 학년 다른 선생님께 허락받으셨나요?\n\n"확인"을 누르면 예약이 진행됩니다.');
+        if (!confirmed) {
+            return; // 취소 시 예약 중단
+        }
+    }
+    
+    // 기존 주간 제한 체크 (3번 이상은 막기)
+    if (currentCount >= 2) {
+        alert(`⚠️ ${currentFacility === 'computer' ? '컴퓨터실' : currentFacility === 'router' ? '공유기' : '도서관'} 주간 사용 제한\n\n개인당 1주일에 최대 2번까지만 예약 가능합니다.\n현재 이번 주 사용 횟수: ${currentCount}/2\n\n기존 예약을 취소한 후 다시 시도해주세요.`);
+        return;
     }
     
     selectedSlot = { date, period, time, day };
     
-    const facilityName = currentFacility === 'computer' ? '컴퓨터실' : '공유기 (늘봄교실3)';
-    const currentCount = getWeeklyReservationCount(currentWeekStart, currentFacility, currentUser);
+    const facilityName = currentFacility === 'computer' ? '컴퓨터실' : 
+                         currentFacility === 'router' ? '공유기 (늘봄교실3)' : '도서관';
     
     document.getElementById('modalTitle').textContent = `${facilityName} ${period} 예약`;
     document.getElementById('modalSubtitle').textContent = `${date} (${day}요일) ${time}에 ${facilityName}을 예약하시겠습니까?\n\n📊 이번 주 사용 현황: ${currentCount}/${WEEKLY_RESERVATION_LIMIT}회`;
@@ -1449,11 +1734,15 @@ function handleWeeklyCellClick(date, period, time, day, currentStatus) {
 // 주간 예약 취소
 async function cancelWeeklyReservation(date, period) {
     const facilityType = currentFacility === 'computer' ? 'computerRoom' : 'tabletRouter';
-    const collectionName = currentFacility === 'computer' ? 'computerRoomRequests' : 'tabletRouterRequests';
-    const storageKey = currentFacility === 'computer' ? 'computerRoomRequests' : 'tabletRouterRequests';
+    const collectionName = currentFacility === 'computer' ? 'computerRoomRequests' : 
+                          currentFacility === 'router' ? 'tabletRouterRequests' : 'libraryRequests';
+    const storageKey = currentFacility === 'computer' ? 'computerRoomRequests' : 
+                      currentFacility === 'router' ? 'tabletRouterRequests' : 'libraryRequests';
     const facilityRequests = currentFacility === 'computer' ? 
         (requests.computerRoom || []) : 
-        (requests.tabletRouter || []);
+        currentFacility === 'router' ?
+        (requests.tabletRouter || []) :
+        (requests.library || []);
     
     const reservation = facilityRequests.find(req => 
         req.useDate === date && 
@@ -1504,7 +1793,7 @@ function updateSchedule() {
     function getTimeSlots(grade, dayOfWeek) {
         const baseSlots = [
             { period: '1교시', time: '08:50-09:30' },
-            { period: '2교시', time: '09:40-10:20' },
+            { period: '2교시', time: currentFacility === 'library' ? '09:30-10:20' : '09:40-10:20' },
             { period: '3교시', time: '10:40-11:20' }
         ];
         
@@ -1524,9 +1813,24 @@ function updateSchedule() {
             );
         }
         
-        // 수요일은 6교시 제외
-        if (dayOfWeek === 3 && grade > 3) { // 수요일(3)이고 4-6학년인 경우
+        // 컴퓨터실: 수요일은 6교시 제외
+        if (currentFacility === 'computer' && dayOfWeek === 3 && grade > 3) { // 수요일(3)이고 4-6학년인 경우
             return baseSlots.slice(0, 5); // 6교시 제거
+        }
+        
+        // 도서관: 정확한 4교시 시간 적용
+        if (currentFacility === 'library') {
+            if (grade <= 3) {
+                // 1,2,3학년: 저학년 4교시 시간
+                baseSlots[3] = { period: '4교시', time: '12:30-13:10' };
+            } else {
+                // 4,5,6학년: 고학년 4교시 시간
+                baseSlots[3] = { period: '4교시', time: '11:30-12:10' };
+            }
+            // 모든 학년에 6교시 추가
+            if (baseSlots.length < 6) {
+                baseSlots.push({ period: '6교시', time: '14:10-14:50' });
+            }
         }
         
         return baseSlots;
@@ -1558,10 +1862,14 @@ function updateSchedule() {
 
 // 시간대별 예약 상태 확인
 function getSlotStatus(date, period) {
-    const computerRoomRequests = requests.computerRoom || [];
+    const facilityRequests = currentFacility === 'computer' ? 
+        (requests.computerRoom || []) : 
+        currentFacility === 'router' ?
+        (requests.tabletRouter || []) :
+        (requests.library || []);
     
     // 선택된 날짜와 시간에 해당하는 승인된 예약 찾기
-    const existingReservation = computerRoomRequests.find(req => 
+    const existingReservation = facilityRequests.find(req => 
         req.useDate === date && 
         req.useTime === period && 
         req.status === 'approved'
@@ -1572,17 +1880,22 @@ function getSlotStatus(date, period) {
         if (existingReservation.requester === currentUser.name && 
             existingReservation.requesterGrade == currentUser.grade && 
             existingReservation.requesterClass == currentUser.class) {
-            return { status: 'my-reservation', requester: existingReservation.requester };
+            // 협의 예약인지 확인
+            const displayText = existingReservation.crossGradeReservation ? '내 예약(협의)' : '내 예약';
+            return { status: 'my-reservation', requester: displayText };
         } else {
-            const gradeClass = existingReservation.requesterGrade && existingReservation.requesterClass ? 
-                `${existingReservation.requesterGrade}-${existingReservation.requesterClass}` : 
-                existingReservation.requester;
-            return { status: 'occupied', requester: gradeClass };
+            // 협의 예약인 경우 displayName 사용, 아니면 기존 로직
+            const displayText = existingReservation.crossGradeReservation && existingReservation.displayName ? 
+                existingReservation.displayName : 
+                (existingReservation.requesterGrade && existingReservation.requesterClass ? 
+                    `${existingReservation.requesterGrade}-${existingReservation.requesterClass}` : 
+                    existingReservation.requester);
+            return { status: 'occupied', requester: displayText };
         }
     }
     
     // 대기중인 예약이 있는지 확인
-    const pendingReservation = computerRoomRequests.find(req => 
+    const pendingReservation = facilityRequests.find(req => 
         req.useDate === date && 
         req.useTime === period && 
         req.status === 'pending'
@@ -1592,12 +1905,41 @@ function getSlotStatus(date, period) {
         if (pendingReservation.requester === currentUser.name && 
             pendingReservation.requesterGrade == currentUser.grade && 
             pendingReservation.requesterClass == currentUser.class) {
-            return { status: 'my-reservation', requester: pendingReservation.requester };
+            // 협의 예약인지 확인
+            const displayText = pendingReservation.crossGradeReservation ? '내 예약(협의)' : '내 예약';
+            return { status: 'my-reservation', requester: displayText };
         } else {
-            const gradeClass = pendingReservation.requesterGrade && pendingReservation.requesterClass ? 
-                `${pendingReservation.requesterGrade}-${pendingReservation.requesterClass}` : 
-                pendingReservation.requester;
-            return { status: 'occupied', requester: gradeClass };
+            // 협의 예약인 경우 displayName 사용, 아니면 기존 로직
+            const displayText = pendingReservation.crossGradeReservation && pendingReservation.displayName ? 
+                pendingReservation.displayName : 
+                (pendingReservation.requesterGrade && pendingReservation.requesterClass ? 
+                    `${pendingReservation.requesterGrade}-${pendingReservation.requesterClass}` : 
+                    pendingReservation.requester);
+            return { status: 'occupied', requester: displayText };
+        }
+    }
+    
+    // 다른 학년 전용 시간대인지 확인
+    const dayOfWeek = new Date(date).getDay();
+    const dayNames = ['일', '월', '화', '수', '목', '금', '토'];
+    const dayName = dayNames[dayOfWeek];
+    
+    // 기본 배정 확인
+    const dayAssignments = defaultAssignments[currentFacility][dayName];
+    const assignedGrade = dayAssignments ? dayAssignments[period] : null;
+    
+    if (assignedGrade) {
+        // 사서도우미 시간 처리 (도서관만)
+        if (currentFacility === 'library' && assignedGrade === '사서도우미') {
+            return { status: 'disabled' };
+        }
+        
+        const assignedGrades = assignedGrade.split(',');
+        const canAccess = currentUser && currentUser.grade && 
+                         assignedGrades.includes(currentUser.grade.toString());
+        
+        if (!canAccess) {
+            return { status: 'other-grade' };
         }
     }
     
@@ -1616,11 +1958,39 @@ function handleSlotClick(date, period, time, currentStatus) {
         return;
     }
     
+    // 현재 예약 개수 확인
+    const today = new Date();
+    const thisMonday = new Date(today);
+    thisMonday.setDate(today.getDate() - today.getDay() + 1);
+    const currentCount = getWeeklyReservationCount(thisMonday, 'computer', currentUser);
+    
+    // 해당 시간이 내 학년 전용인지 확인
+    const dayOfWeek = new Date(date).getDay();
+    const dayNames = ['일', '월', '화', '수', '목', '금', '토'];
+    const dayName = dayNames[dayOfWeek];
+    const dayAssignments = defaultAssignments.computer[dayName];
+    const assignedGrade = dayAssignments ? dayAssignments[period] : null;
+    const isMyGradeSlot = assignedGrade && assignedGrade.split(',').includes(currentUser.grade.toString());
+    
+    // 2번째 예약부터는 같은 학년 시간대에서 다른 선생님 허락 확인
+    if (currentCount >= 1 && isMyGradeSlot) {
+        const confirmed = confirm('이미 이번 주에 정해진 시간에 예약이 1번 되었습니다.\n\n같은 학년 다른 선생님께 허락받으셨나요?\n\n"확인"을 누르면 예약이 진행됩니다.');
+        if (!confirmed) {
+            return; // 취소 시 예약 중단
+        }
+    }
+    
+    // 3번 이상은 막기
+    if (currentCount >= 2) {
+        alert(`⚠️ 컴퓨터실 주간 사용 제한\n\n개인당 1주일에 최대 2번까지만 예약 가능합니다.\n현재 이번 주 사용 횟수: ${currentCount}/2\n\n기존 예약을 취소한 후 다시 시도해주세요.`);
+        return;
+    }
+
     // 새 예약
     selectedSlot = { date, period, time };
     
     document.getElementById('modalTitle').textContent = `${period} 예약`;
-    document.getElementById('modalSubtitle').textContent = `${date} ${time}에 컴퓨터실을 예약하시겠습니까?`;
+    document.getElementById('modalSubtitle').textContent = `${date} ${time}에 컴퓨터실을 예약하시겠습니까?\n\n📊 이번 주 사용 현황: ${currentCount}/2회`;
     
     const modal = document.getElementById('reservationModal');
     modal.classList.add('active');
@@ -1717,6 +2087,48 @@ function closeReservationModal() {
     selectedSlot = null;
 }
 
+// 중복 예약 검사 함수
+function checkDuplicateReservation(date, period) {
+    // 모든 시설의 예약을 확인
+    const allReservations = [
+        ...(requests.computerRoom || []),
+        ...(requests.tabletRouter || []),
+        ...(requests.library || [])
+    ];
+    
+    // 같은 날짜, 같은 시간에 내가 예약한 것이 있는지 확인
+    const existingReservation = allReservations.find(req => 
+        req.useDate === date && 
+        req.useTime === period && 
+        req.requester === currentUser.name &&
+        req.requesterGrade == currentUser.grade &&
+        req.requesterClass == currentUser.class &&
+        (req.status === 'approved' || req.status === 'pending')
+    );
+    
+    if (existingReservation) {
+        // 시설명 결정
+        let facilityName = '알 수 없는 시설';
+        if (requests.computerRoom?.includes(existingReservation)) {
+            facilityName = '컴퓨터실';
+        } else if (requests.tabletRouter?.includes(existingReservation)) {
+            facilityName = '공유기실';
+        } else if (requests.library?.includes(existingReservation)) {
+            facilityName = '도서관';
+        }
+        
+        return {
+            isDuplicate: true,
+            facility: facilityName,
+            reservation: existingReservation
+        };
+    }
+    
+    return {
+        isDuplicate: false
+    };
+}
+
 // 예약 확정 (Firebase 지원)
 async function confirmReservation() {
     if (!selectedSlot) {
@@ -1724,11 +2136,19 @@ async function confirmReservation() {
         return;
     }
     
+    // 중복 예약 검사
+    const duplicateCheck = checkDuplicateReservation(selectedSlot.date, selectedSlot.period);
+    if (duplicateCheck.isDuplicate) {
+        alert(`예약이 겹쳐서 신청할 수 없습니다.\n\n이미 ${selectedSlot.date} ${selectedSlot.period}에 ${duplicateCheck.facility} 예약이 있습니다.`);
+        return;
+    }
+    
     // dbManager 안전 접근
     const db = getDbManager();
     
     // 시설별 컬렉션 이름 결정
-    const collectionName = currentFacility === 'computer' ? 'computerRoomRequests' : 'tabletRouterRequests';
+    const collectionName = currentFacility === 'computer' ? 'computerRoomRequests' : 
+                          currentFacility === 'router' ? 'tabletRouterRequests' : 'libraryRequests';
     
     // 예약 데이터 생성 (자동 승인)
     const reservation = {
@@ -1763,18 +2183,26 @@ async function confirmReservation() {
             requests.computerRoom.push(reservation);
             // localStorage도 직접 업데이트
             localStorage.setItem('computerRoomRequests', JSON.stringify(requests.computerRoom));
-        } else {
+        } else if (currentFacility === 'router') {
             if (!requests.tabletRouter) {
                 requests.tabletRouter = [];
             }
             requests.tabletRouter.push(reservation);
             // localStorage도 직접 업데이트
             localStorage.setItem('tabletRouterRequests', JSON.stringify(requests.tabletRouter));
+        } else if (currentFacility === 'library') {
+            if (!requests.library) {
+                requests.library = [];
+            }
+            requests.library.push(reservation);
+            // localStorage도 직접 업데이트
+            localStorage.setItem('libraryRequests', JSON.stringify(requests.library));
         }
         
         console.log('✅ 로컬 메모리 및 저장소 업데이트 완료:', reservation);
         
-        const facilityName = currentFacility === 'computer' ? '컴퓨터실' : '공유기 (늘봄교실3)';
+        const facilityName = currentFacility === 'computer' ? '컴퓨터실' : 
+                         currentFacility === 'router' ? '공유기 (늘봄교실3)' : '도서관';
         const statusMsg = db.isConnected() ? 
             '실시간 데이터베이스에 저장되어 모든 선생님이 확인할 수 있습니다!' : 
             '로컬에 저장되었습니다 (데모 모드)';
@@ -1847,47 +2275,209 @@ function goBack() {
         console.log('📊 현재 사용자:', currentUser);
         console.log('📋 requests 객체:', requests);
         
-        // 통합 예약 상태 위젯 생성
-        const createReservationWidget = (computerReservations, routerReservations) => {
-            console.log('🎨 위젯 생성 중:', { computerReservations, routerReservations });
+        // 컴퓨터실 예약 화면과 동일한 형태의 예약 상태 위젯 생성
+        const createReservationWidget = (computerReservations, routerReservations, libraryReservations) => {
+            console.log('🎨 위젯 생성 중:', { computerReservations, routerReservations, libraryReservations });
             
-            const formatReservations = (reservations, facilityName) => {
-                if (!reservations || reservations.length === 0) {
-                    return `<div class="no-reservation">❌ ${facilityName}: 예약 없음</div>`;
+            // 컴퓨터실 예약 화면과 동일한 방식으로 셀 상태 확인
+            function getCellStatus(dayParam, period, dateStr, allReservations) {
+                // 실제 날짜에서 요일을 직접 계산 (dayParam 대신 dateStr 사용)
+                const date = new Date(dateStr);
+                const dayOfWeek = date.getDay(); // 0=일, 1=월, 2=화...
+                const actualDayNames = ['일', '월', '화', '수', '목', '금', '토'];
+                const actualDay = actualDayNames[dayOfWeek];
+                
+                console.log(`🔍 셀 상태 확인: dateStr=${dateStr}, dayOfWeek=${dayOfWeek}, actualDay=${actualDay}, period=${period}`);
+                
+                // 해당 날짜와 교시에 예약이 있는지 확인
+                const existingReservation = allReservations.find(req => 
+                    req.useDate === dateStr && 
+                    req.useTime === period && 
+                    req.requester === currentUser.name &&
+                    req.requesterGrade == currentUser.grade &&
+                    req.requesterClass == currentUser.class &&
+                    (req.status === 'approved' || req.status === 'pending')
+                );
+                
+                if (existingReservation) {
+                    console.log(`✅ 예약 발견: ${dateStr} ${period} - ${existingReservation.facility}`);
                 }
                 
-                return reservations.map(reservation => {
-                    const date = new Date(reservation.useDate);
-                    const dayNames = ['일', '월', '화', '수', '목', '금', '토'];
-                    const dayName = dayNames[date.getDay()];
+                if (existingReservation) {
+                    // 내 예약이 있음 - 어떤 시설인지 표시
+                    const facilityName = existingReservation.facility || 
+                        (requests.computerRoom?.includes(existingReservation) ? '컴퓨터실' :
+                         requests.tabletRouter?.includes(existingReservation) ? '공유기' : '도서관');
                     
-                    // 이번주/다음주 구분
-                    const today = new Date();
-                    const thisMonday = new Date(today);
-                    thisMonday.setDate(today.getDate() - today.getDay() + 1);
-                    const nextMonday = new Date(thisMonday);
-                    nextMonday.setDate(thisMonday.getDate() + 7);
+                    const displayText = existingReservation.crossGradeReservation ? 
+                        `${facilityName}(협의)` : facilityName;
                     
-                    const weekLabel = date >= nextMonday ? '[다음주]' : '[이번주]';
+                    // 시설별 색깔 구분을 위한 클래스 추가
+                    let facilityClass = 'my-reservation';
+                    if (facilityName === '컴퓨터실') {
+                        facilityClass += ' computer-reservation';
+                    } else if (facilityName === '공유기') {
+                        facilityClass += ' router-reservation';
+                    } else if (facilityName === '도서관') {
+                        facilityClass += ' library-reservation';
+                    }
                     
-                    return `
-                        <div class="has-reservation-item">
-                            <span class="facility-name">✅ ${facilityName}:</span>
-                            <span class="reservation-details">${weekLabel} ${date.getMonth() + 1}/${date.getDate()}(${dayName}) ${reservation.useTime}</span>
-                        </div>
-                    `;
-                }).join('');
-            };
+                    return {
+                        status: facilityClass,
+                        content: displayText,
+                        clickable: false
+                    };
+                }
+                
+                return {
+                    status: 'available',
+                    content: '',
+                    clickable: false
+                };
+            }
             
-            const hasAnyReservation = (computerReservations && computerReservations.length > 0) || 
-                                    (routerReservations && routerReservations.length > 0);
+            // 모든 예약을 합치기 (시설명 추가)
+            const allReservations = [
+                ...(computerReservations || []).map(r => ({...r, facility: '컴퓨터실'})),
+                ...(routerReservations || []).map(r => ({...r, facility: '공유기'})),
+                ...(libraryReservations || []).map(r => ({...r, facility: '도서관'}))
+            ];
+            
+            console.log('📊 모든 예약:', allReservations);
+            
+            // 오늘 날짜 기준으로 이번주 월요일 계산 (컴퓨터실 화면과 동일한 방식)
+            const today = new Date();
+            const dashboardMonday = new Date(today);
+            dashboardMonday.setDate(today.getDate() - today.getDay() + 1);
+            
+            // ISO 주차 방식으로 정확한 월요일 계산 (컴퓨터실과 동일)
+            const thisYear = dashboardMonday.getFullYear();
+            const thisWeekNumber = getWeekNumber(dashboardMonday);
+            const thisMonday = getDateFromWeek(thisYear, thisWeekNumber);
+            
+            console.log('🔍 대시보드 날짜 계산:', {
+                today: today.toISOString().split('T')[0],
+                dashboardMonday: dashboardMonday.toISOString().split('T')[0],
+                thisMonday: thisMonday.toISOString().split('T')[0]
+            });
+            
+            // 2주치 날짜 생성
+            const weeks = [];
+            for (let w = 0; w < 2; w++) {
+                const weekStart = new Date(thisMonday);
+                weekStart.setDate(thisMonday.getDate() + (w * 7));
+                
+                const weekDays = [];
+                for (let d = 0; d < 5; d++) { // 월~금
+                    const day = new Date(weekStart);
+                    day.setDate(weekStart.getDate() + d);
+                    weekDays.push(day);
+                }
+                weeks.push({
+                    label: w === 0 ? '이번주' : '다음주',
+                    days: weekDays
+                });
+            }
+            
+            const periods = ['1교시', '2교시', '3교시', '4교시', '5교시', '6교시'];
+            const weekdays = ['월', '화', '수', '목', '금'];
+            
+            const hasAnyReservation = allReservations.length > 0;
             
             return `
                 <div class="reservation-widget ${hasAnyReservation ? 'has-reservations' : ''}">
                     <div class="widget-header">📅 2주간 예약 현황</div>
-                    <div class="reservation-list">
-                        ${formatReservations(computerReservations, '컴퓨터실')}
-                        ${formatReservations(routerReservations, '공유기')}
+                    <div class="facility-legend">
+                        <div class="legend-item">
+                            <div class="legend-color computer-color"></div>
+                            <span>컴퓨터실</span>
+                        </div>
+                        <div class="legend-item">
+                            <div class="legend-color router-color"></div>
+                            <span>공유기실</span>
+                        </div>
+                        <div class="legend-item">
+                            <div class="legend-color library-color"></div>
+                            <span>도서관</span>
+                        </div>
+                    </div>
+                    <div class="reservation-table-container">
+                        <div class="weeks-wrapper">
+                            ${weeks.map(week => {
+                                let tableHTML = `
+                                    <div class="week-section">
+                                        <div class="week-header">${week.label}</div>
+                                        <table class="weekly-schedule-table">
+                                            <thead>
+                                                <tr>
+                                                    <th class="period-header">교시</th>
+                                `;
+                                
+                                // 요일 헤더
+                                week.days.forEach((day, index) => {
+                                    const dateStr = `${day.getMonth() + 1}/${day.getDate()}`;
+                                    // 실제 요일을 날짜에서 직접 계산
+                                    const dayOfWeek = day.getDay(); // 0=일, 1=월, 2=화...
+                                    const dayNames = ['일', '월', '화', '수', '목', '금', '토'];
+                                    const actualDayName = dayNames[dayOfWeek];
+                                    tableHTML += `<th class="day-header">${actualDayName}<br><small>${dateStr}</small></th>`;
+                                    
+                                    // 디버깅: 헤더 확인
+                                    console.log(`📅 헤더 확인: index=${index}, day=${day.toISOString().split('T')[0]}, dayOfWeek=${dayOfWeek}, actualDayName=${actualDayName}`);
+                                });
+                                
+                                tableHTML += `
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                `;
+                                
+                                // 교시별 행 생성
+                                periods.forEach(period => {
+                                    tableHTML += `
+                                        <tr>
+                                            <th class="period-label">${period}</th>
+                                    `;
+                                    
+                                    week.days.forEach((day, dayIndex) => {
+                                        const date = new Date(day);
+                                        const dateStr = date.toISOString().split('T')[0];
+                                        
+                                        // 실제 날짜에서 요일 직접 계산 (weekdays[dayIndex] 대신)
+                                        const dayOfWeek = date.getDay();
+                                        const dayNames = ['일', '월', '화', '수', '목', '금', '토'];
+                                        const actualDayName = dayNames[dayOfWeek];
+                                        
+                                        // 디버깅 로그 추가
+                                        if (period === '1교시') {
+                                            console.log(`📅 셀 매핑 확인: ${dateStr} -> dayIndex: ${dayIndex}, dayOfWeek: ${dayOfWeek}, actualDayName: ${actualDayName}`);
+                                        }
+                                        
+                                        const cellStatus = getCellStatus(actualDayName, period, dateStr, allReservations);
+                                        const cellClass = cellStatus.status;
+                                        const displayText = cellStatus.content || '';
+                                        
+                                        tableHTML += `
+                                            <td>
+                                                <button class="schedule-cell ${cellClass}">
+                                                    ${displayText}
+                                                </button>
+                                            </td>
+                                        `;
+                                    });
+                                    
+                                    tableHTML += `</tr>`;
+                                });
+                                
+                                tableHTML += `
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                `;
+                                
+                                return tableHTML;
+                            }).join('')}
+                        </div>
                     </div>
                 </div>
             `;
@@ -1895,15 +2485,27 @@ function goBack() {
         
         // 선생님 메뉴 표시
         content.innerHTML = `
-            ${createReservationWidget(reservationStatus.computer, reservationStatus.router)}
+            ${createReservationWidget(reservationStatus.computer, reservationStatus.router, reservationStatus.library)}
+            
+            <div class="usage-guide">
+                💡 메뉴 클릭 → 시설 예약 | 위 표에서 예약 현황 확인
+            </div>
             
             <div class="menu-grid">
                 <div class="menu-item" onclick="openPage('computer-room')">
-                    <h3>컴퓨터실/공유기 예약</h3>
-                    <p>컴퓨터실과 공유기를 예약합니다</p>
+                    <h3>💻 컴퓨터실 예약</h3>
+                    <p>컴퓨터실 이용 시간을 예약합니다</p>
+                </div>
+                <div class="menu-item" onclick="openPage('router')">
+                    <h3>📱 공유기실 예약</h3>
+                    <p>공유기(늘봄교실3) 이용 시간을 예약합니다</p>
+                </div>
+                <div class="menu-item" onclick="openPage('library')">
+                    <h3>📚 도서관 이용 예약</h3>
+                    <p>도서관 이용 시간을 예약합니다</p>
                 </div>
                 <div class="menu-item disabled" onclick="showUpdateMessage('science-supplies')">
-                    <h3>과학실 준비물 신청</h3>
+                    <h3>🧪 과학실 준비물 신청</h3>
                     <p>🔄 업데이트 예정</p>
                 </div>
             </div>
@@ -1996,43 +2598,60 @@ function showCrossGradeConfirmation(date, period, time, day) {
 }
 
 async function processCrossGradeReservation(date, period, time, day) {
+    // 중복 예약 검사
+    const duplicateCheck = checkDuplicateReservation(date, period);
+    if (duplicateCheck.isDuplicate) {
+        alert(`예약이 겹쳐서 신청할 수 없습니다.\n\n이미 ${date} ${period}에 ${duplicateCheck.facility} 예약이 있습니다.`);
+        return;
+    }
+    
     const db = getDbManager();
     
     // 예약 데이터 생성 (협의 표시 포함)
     const reservation = {
         id: Date.now(),
-        requester: currentUser.name + ' (다른학년 협의)',
+        requester: currentUser.name, // 원래 이름으로 저장 (내 예약 확인을 위해)
         requesterGrade: currentUser.grade || null,
         requesterClass: currentUser.class || null,
         originalRequesterGrade: currentUser.grade,
         originalRequesterName: currentUser.name,
         crossGradeReservation: true, // 협의 예약 표시
+        displayName: `${currentUser.grade}-${currentUser.class}(협의)`, // 표시용 이름 간소화
         status: 'approved',
         submittedAt: new Date().toLocaleString('ko-KR'),
         processedAt: new Date().toLocaleString('ko-KR'),
         requestDate: new Date().toISOString().split('T')[0],
         useDate: date,
         useTime: period,
-        facility: 'computer',
+        facility: currentFacility, // 현재 시설 (computer 또는 router)
         schoolName: '두정초등학교'
     };
     
     try {
+        // 현재 시설에 맞는 컬렉션 이름 결정
+        const collectionName = currentFacility === 'computer' ? 'computerRoomRequests' : 
+                          currentFacility === 'router' ? 'tabletRouterRequests' : 'libraryRequests';
+        const storageKey = currentFacility === 'computer' ? 'computerRoomRequests' : 
+                      currentFacility === 'router' ? 'tabletRouterRequests' : 'libraryRequests';
+        const requestsKey = currentFacility === 'computer' ? 'computerRoom' : 
+                           currentFacility === 'router' ? 'tabletRouter' : 'library';
+        
         // 데이터베이스에 저장
-        const firestoreId = await db.addDocument('computerRoomRequests', reservation);
+        const firestoreId = await db.addDocument(collectionName, reservation);
         
         if (firestoreId) {
             reservation.firestoreId = firestoreId;
         }
         
         // 로컬 데이터 업데이트
-        if (!requests.computerRoom) {
-            requests.computerRoom = [];
+        if (!requests[requestsKey]) {
+            requests[requestsKey] = [];
         }
-        requests.computerRoom.push(reservation);
-        localStorage.setItem('computerRoomRequests', JSON.stringify(requests.computerRoom));
+        requests[requestsKey].push(reservation);
+        localStorage.setItem(storageKey, JSON.stringify(requests[requestsKey]));
         
-        alert('다른 학년 시간대 예약이 완료되었습니다.\n(협의 완료 표시됨)');
+        const facilityName = currentFacility === 'computer' ? '컴퓨터실' : '공유기';
+        alert(`다른 학년 시간대 ${facilityName} 예약이 완료되었습니다.\n(협의 완료 표시됨)`);
         
         // 화면 업데이트
         if (document.getElementById('weeklyScheduleContainer')) {
