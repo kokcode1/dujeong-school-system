@@ -1328,6 +1328,9 @@ button[type="submit"]:active {
         height: 50px;
         font-size: 0.7rem;
         padding: 0.25rem;
+    }
+    
+    .weekly-schedule-table td {
         width: calc((100% - 50px) / 5);
         max-width: calc((100% - 50px) / 5);
     }
@@ -1399,7 +1402,19 @@ button[type="submit"]:active {
     .weekly-schedule-table th.period-header {
         padding: 0.4rem 0.1rem;
         font-size: 0.6rem;
+        width: 45px;
         min-width: 45px;
+        max-width: 45px;
+    }
+    
+    .weekly-schedule-table th:not(.period-header) {
+        width: calc((100% - 45px) / 5);
+        max-width: calc((100% - 45px) / 5);
+    }
+    
+    .weekly-schedule-table td:not(.period-header) {
+        width: calc((100% - 45px) / 5);
+        max-width: calc((100% - 45px) / 5);
     }
     
     .schedule-cell {
@@ -1714,9 +1729,9 @@ button[type="submit"]:active {
 }
 
 .weekly-schedule-table td:not(.period-header) {
-    width: calc((100% - 80px) / 5);
-    min-width: calc((100% - 80px) / 5);
-    max-width: calc((100% - 80px) / 5);
+    width: calc((100% - 120px) / 5);
+    min-width: calc((100% - 120px) / 5);
+    max-width: calc((100% - 120px) / 5);
 }
 
 .period-header,
