@@ -1312,15 +1312,24 @@ button[type="submit"]:active {
     }
     
     .weekly-schedule-table th.period-header {
-        padding: 0.5rem 0.25rem;
-        font-size: 0.7rem;
-        min-width: 60px;
+        padding: 0.4rem 0.15rem;
+        font-size: 0.65rem;
+        width: 50px;
+        min-width: 50px;
+        max-width: 50px;
+    }
+    
+    .weekly-schedule-table th:not(.period-header) {
+        width: calc((100% - 50px) / 5);
+        max-width: calc((100% - 50px) / 5);
     }
     
     .schedule-cell {
         height: 50px;
         font-size: 0.7rem;
         padding: 0.25rem;
+        width: calc((100% - 50px) / 5);
+        max-width: calc((100% - 50px) / 5);
     }
     
     /* 텍스트는 JavaScript에서 직접 처리 */
