@@ -1303,7 +1303,8 @@ function generateWeeklyScheduleTable() {
             const cellClass = cellStatus.status;
             const cellData = cellStatus.grade ? `data-grade="${cellStatus.grade}"` : '';
             const onClick = cellStatus.clickable ? 
-                `onclick="handleWeeklyCellClick('${dateStr}', '${period.name}', '${period.time}', '${day}', '${cellClass}')"` : '';
+                `onclick="handleWeeklyCellClick('${dateStr}', '${period.name}', '${period.time}', '${day}', '${cellClass}')"` : 
+                (cellClass === 'other-grade' ? `onclick="showCrossGradeConfirmation('${dateStr}', '${period.name}', '${period.time}', '${day}')"` : '');
             
             // 텍스트는 한 곳에서만 표시 - CSS에서 처리하지 않고 여기서 직접 표시
             const displayText = cellStatus.content || '';
@@ -1539,7 +1540,9 @@ function updateSchedule() {
         const slotStatus = getSlotStatus(selectedDate, slot.period);
         const statusClass = slotStatus.status;
         const isClickable = statusClass === 'available' || statusClass === 'my-reservation';
-        const onClick = isClickable ? `onclick="handleSlotClick('${selectedDate}', '${slot.period}', '${slot.time}', '${statusClass}')"` : '';
+        const onClick = isClickable ? 
+            `onclick="handleSlotClick('${selectedDate}', '${slot.period}', '${slot.time}', '${statusClass}')"` : 
+            (statusClass === 'other-grade' ? `onclick="showCrossGradeConfirmation('${selectedDate}', '${slot.period}', '${slot.time}', '')"` : '');
         
         gridHTML += `
             <div class="time-slot ${statusClass}" ${slotStatus.requester ? `data-content="${slotStatus.requester}"` : ''} ${onClick}>
@@ -1978,5 +1981,71 @@ function updateMainDashboard() {
             hasCurrentUser: !!currentUser,
             isTeacher: currentUser?.type === 'teacher'
         });
+    }
+}
+
+// 다른 학년 협의 예약 기능
+
+function showCrossGradeConfirmation(date, period, time, day) {
+    const confirmed = confirm('해당 학년 선생님과 협의하셨나요?\n\n"예"를 누르면 예약이 진행됩니다.');
+    
+    if (confirmed) {
+        // 협의 완료된 예약으로 처리
+        processCrossGradeReservation(date, period, time, day);
+    }
+}
+
+async function processCrossGradeReservation(date, period, time, day) {
+    const db = getDbManager();
+    
+    // 예약 데이터 생성 (협의 표시 포함)
+    const reservation = {
+        id: Date.now(),
+        requester: currentUser.name + ' (다른학년 협의)',
+        requesterGrade: currentUser.grade || null,
+        requesterClass: currentUser.class || null,
+        originalRequesterGrade: currentUser.grade,
+        originalRequesterName: currentUser.name,
+        crossGradeReservation: true, // 협의 예약 표시
+        status: 'approved',
+        submittedAt: new Date().toLocaleString('ko-KR'),
+        processedAt: new Date().toLocaleString('ko-KR'),
+        requestDate: new Date().toISOString().split('T')[0],
+        useDate: date,
+        useTime: period,
+        facility: 'computer',
+        schoolName: '두정초등학교'
+    };
+    
+    try {
+        // 데이터베이스에 저장
+        const firestoreId = await db.addDocument('computerRoomRequests', reservation);
+        
+        if (firestoreId) {
+            reservation.firestoreId = firestoreId;
+        }
+        
+        // 로컬 데이터 업데이트
+        if (!requests.computerRoom) {
+            requests.computerRoom = [];
+        }
+        requests.computerRoom.push(reservation);
+        localStorage.setItem('computerRoomRequests', JSON.stringify(requests.computerRoom));
+        
+        alert('다른 학년 시간대 예약이 완료되었습니다.\n(협의 완료 표시됨)');
+        
+        // 화면 업데이트
+        if (document.getElementById('weeklyScheduleContainer')) {
+            updateWeeklySchedule();
+        }
+        if (document.getElementById('scheduleGrid')) {
+            updateSchedule();
+        }
+        updateAdminStats();
+        updateMainDashboard();
+        
+    } catch (error) {
+        console.error('❌ 협의 예약 처리 오류:', error);
+        alert('예약 처리 중 오류가 발생했습니다.');
     }
 }
