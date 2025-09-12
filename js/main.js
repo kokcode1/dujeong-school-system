@@ -49,10 +49,18 @@ function checkAutoLogin() {
 // 과거 날짜 선택 방지 함수
 function setMinDateToToday() {
     const today = new Date().toISOString().split('T')[0];
-    const dateInputs = document.querySelectorAll('input[type="date"]');
-    dateInputs.forEach(input => {
-        input.setAttribute('min', today);
-    });
+    
+    // DOM이 완전히 로드될 때까지 기다림
+    setTimeout(() => {
+        const dateInputs = document.querySelectorAll('input[type="date"]');
+        console.log('📅 날짜 입력 필드 개수:', dateInputs.length);
+        
+        dateInputs.forEach((input, index) => {
+            input.setAttribute('min', today);
+            input.setAttribute('value', today); // 기본값도 오늘로 설정
+            console.log(`📅 ${index + 1}번 필드 최소값 설정:`, today);
+        });
+    }, 100);
 }
 
 // 저장된 세션 확인 및 복원 (기존 함수 - 호환성 유지)
