@@ -1,11 +1,13 @@
-// Firebase 설정 - 실제 사용 시 firebase.google.com에서 프로젝트 생성 후 설정값을 여기에 입력하세요
+// Firebase 설정 템플릿 - 실제 사용 시 firebase.google.com에서 프로젝트 생성 후 설정값을 입력하세요
+// 이 파일을 firebase-config.js로 복사하고 아래 설정값들을 실제 값으로 교체하세요
+
 const firebaseConfig = {
-  apiKey: "AIzaSyBTe63NT8W4UVWEsUJfzsWh-JwGv2NBObs",
-  authDomain: "dujeong-school-system.firebaseapp.com",
-  projectId: "dujeong-school-system",
-  storageBucket: "dujeong-school-system.firebasestorage.app",
-  messagingSenderId: "849456451042",
-  appId: "1:849456451042:web:5169f1a5671426d9837dbb"
+  apiKey: "your-api-key-here",
+  authDomain: "your-project-id.firebaseapp.com",
+  projectId: "your-project-id",
+  storageBucket: "your-project-id.firebasestorage.app",
+  messagingSenderId: "your-sender-id",
+  appId: "your-app-id"
 };
 
 // Firebase 앱 초기화 확인

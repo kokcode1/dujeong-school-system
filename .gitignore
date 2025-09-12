@@ -1,0 +1,29 @@
+# Firebase configuration with sensitive keys
+js/firebase-config.js
+
+# Local development files
+.env
+.env.local
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Dependencies (if using npm)
+node_modules/
+
+# Build outputs
+dist/
+build/
+
+# Claude settings (keep local only)
+.claude/settings.local.json
