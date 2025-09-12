@@ -1800,6 +1800,11 @@ button[type="submit"]:active {
     justify-content: center;
 }
 
+/* 대시보드 2주간 예약현황 위젯에서만 호버 비활성화 */
+.reservation-widget .schedule-cell {
+    pointer-events: none;
+}
+
 .schedule-cell.my-reservation {
     background: #ffd700;
     color: #000000;
