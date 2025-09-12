@@ -561,13 +561,12 @@ function getUserReservationStatus(userInfo) {
     const thisMonday = new Date(today);
     thisMonday.setDate(today.getDate() - today.getDay() + 1); // 이번주 월요일
     
-    // 이번주 일요일부터 다음주 금요일까지 (일요일 예약도 포함)
-    const thisWeekStart = new Date(thisMonday);
-    thisWeekStart.setDate(thisMonday.getDate() - 1); // 일요일
+    // 이번주 월요일부터 다음주 금요일까지 (학교 수업일만)
+    const thisWeekStart = new Date(thisMonday); // 월요일 시작
     const twoWeeksEnd = new Date(thisMonday);
     twoWeeksEnd.setDate(thisMonday.getDate() + 11); // 다음주 금요일까지
     
-    const weekStartStr = thisWeekStart.toISOString().split('T')[0]; // 일요일부터
+    const weekStartStr = thisWeekStart.toISOString().split('T')[0]; // 월요일부터
     const twoWeeksEndStr = twoWeeksEnd.toISOString().split('T')[0];
     
     console.log('📅 주간 범위 계산:', {
