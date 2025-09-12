@@ -342,6 +342,21 @@ button[type="submit"]:active {
     border-color: #cbd5e0;
 }
 
+/* 시설 예약 테이블의 과거 날짜 스타일 */
+.schedule-cell.past-date {
+    background-color: #e2e8f0 !important;
+    color: #a0aec0 !important;
+    cursor: not-allowed !important;
+    opacity: 0.6;
+    font-size: 0.85em;
+}
+
+.schedule-cell.past-date:hover {
+    background-color: #e2e8f0 !important;
+    transform: none !important;
+    box-shadow: none !important;
+}
+
 .date-selector select option {
     padding: 0.5rem;
     background: white;

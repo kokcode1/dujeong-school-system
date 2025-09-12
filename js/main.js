@@ -1571,15 +1571,26 @@ function generateWeeklyScheduleTable() {
             date.setDate(currentWeekStart.getDate() + dayIndex);
             const dateStr = date.toISOString().split('T')[0];
             
-            const cellStatus = getWeeklyCellStatus(day, period.name, dateStr);
-            const cellClass = cellStatus.status;
-            const cellData = cellStatus.grade ? `data-grade="${cellStatus.grade}"` : '';
-            const onClick = cellStatus.clickable ? 
-                `onclick="handleWeeklyCellClick('${dateStr}', '${period.name}', '${period.time}', '${day}', '${cellClass}')"` : 
-                (cellClass === 'default-assigned' ? `onclick="showCrossGradeConfirmation('${dateStr}', '${period.name}', '${period.time}', '${day}')"` : '');
+            // 과거 날짜 확인
+            const today = new Date().toISOString().split('T')[0];
+            const isPastDate = dateStr < today;
             
-            // 텍스트는 한 곳에서만 표시 - CSS에서 처리하지 않고 여기서 직접 표시
-            const displayText = cellStatus.content || '';
+            const cellStatus = getWeeklyCellStatus(day, period.name, dateStr);
+            let cellClass = cellStatus.status;
+            let cellData = cellStatus.grade ? `data-grade="${cellStatus.grade}"` : '';
+            let onClick = '';
+            let displayText = cellStatus.content || '';
+            
+            // 과거 날짜인 경우 비활성화
+            if (isPastDate) {
+                cellClass = 'past-date';
+                onClick = '';
+                displayText = '지난일';
+            } else {
+                onClick = cellStatus.clickable ? 
+                    `onclick="handleWeeklyCellClick('${dateStr}', '${period.name}', '${period.time}', '${day}', '${cellClass}')"` : 
+                    (cellClass === 'default-assigned' ? `onclick="showCrossGradeConfirmation('${dateStr}', '${period.name}', '${period.time}', '${day}')"` : '');
+            }
             
             tableHTML += `
                 <td>
