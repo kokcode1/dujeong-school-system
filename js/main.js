@@ -1368,13 +1368,9 @@ function initializeWeekSelector() {
     
     const today = new Date();
     
-    // 대시보드와 동일한 방식으로 ISO 주차 기반 월요일 계산
-    const dashboardMonday = new Date(today);
-    dashboardMonday.setDate(today.getDate() - today.getDay() + 1);
-    
-    const thisYear = dashboardMonday.getFullYear();
-    const thisWeekNumber = getWeekNumber(dashboardMonday);
-    const thisMonday = getDateFromWeek(thisYear, thisWeekNumber);
+    // 간단한 이번주 월요일 계산
+    const thisMonday = new Date(today);
+    thisMonday.setDate(today.getDate() - today.getDay() + 1);
     
     // 다음 주의 월요일 구하기
     const nextMonday = new Date(thisMonday);
@@ -1403,13 +1399,9 @@ function selectWeek(weekType) {
     
     const today = new Date();
     
-    // 대시보드와 동일한 방식으로 ISO 주차 기반 월요일 계산
-    const dashboardMonday = new Date(today);
-    dashboardMonday.setDate(today.getDate() - today.getDay() + 1);
-    
-    const thisYear = dashboardMonday.getFullYear();
-    const thisWeekNumber = getWeekNumber(dashboardMonday);
-    const thisMonday = getDateFromWeek(thisYear, thisWeekNumber);
+    // 간단한 이번주 월요일 계산
+    const thisMonday = new Date(today);
+    thisMonday.setDate(today.getDate() - today.getDay() + 1);
     
     if (weekType === 'this') {
         thisWeekBtn.classList.add('active');
