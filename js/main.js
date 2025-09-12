@@ -46,6 +46,15 @@ function checkAutoLogin() {
     return false;
 }
 
+// 과거 날짜 선택 방지 함수
+function setMinDateToToday() {
+    const today = new Date().toISOString().split('T')[0];
+    const dateInputs = document.querySelectorAll('input[type="date"]');
+    dateInputs.forEach(input => {
+        input.setAttribute('min', today);
+    });
+}
+
 // 저장된 세션 확인 및 복원 (기존 함수 - 호환성 유지)
 function checkSavedSession() {
     const savedSession = localStorage.getItem('teacherSession');
@@ -995,6 +1004,9 @@ function showScienceForm() {
         </div>
     `;
     
+    // 과거 날짜 선택 방지
+    setMinDateToToday();
+    
     document.getElementById('scienceForm').addEventListener('submit', function(e) {
         e.preventDefault();
         submitRequest('science', {
@@ -1043,6 +1055,9 @@ function showMaintenanceForm() {
             </form>
         </div>
     `;
+    
+    // 과거 날짜 선택 방지
+    setMinDateToToday();
     
     document.getElementById('maintenanceForm').addEventListener('submit', function(e) {
         e.preventDefault();
@@ -1094,6 +1109,9 @@ function showTonerForm() {
             </form>
         </div>
     `;
+    
+    // 과거 날짜 선택 방지
+    setMinDateToToday();
     
     document.getElementById('tonerForm').addEventListener('submit', function(e) {
         e.preventDefault();
@@ -1237,6 +1255,9 @@ function showTabletManagement() {
             </form>
         </div>
     `;
+    
+    // 과거 날짜 선택 방지
+    setMinDateToToday();
     
     document.getElementById('tabletManageForm').addEventListener('submit', function(e) {
         e.preventDefault();

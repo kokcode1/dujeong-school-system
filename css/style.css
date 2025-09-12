@@ -334,6 +334,14 @@ button[type="submit"]:active {
     box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.1);
 }
 
+/* 과거 날짜 비활성화 스타일 */
+.date-selector input[type="date"]:invalid {
+    background-color: #f7fafc;
+    color: #a0aec0;
+    cursor: not-allowed;
+    border-color: #cbd5e0;
+}
+
 .date-selector select option {
     padding: 0.5rem;
     background: white;
