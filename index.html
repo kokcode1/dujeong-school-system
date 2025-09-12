@@ -140,56 +140,40 @@
     
     <!-- Firebase 설정 및 초기화 -->
     <script>
-    // Firebase 설정 - 깃허브 페이지용 (데모 모드)
-    const firebaseConfig = {
-        apiKey: "your-api-key-here",
-        authDomain: "your-project-id.firebaseapp.com", 
-        projectId: "your-project-id",
-        storageBucket: "your-project-id.firebasestorage.app",
-        messagingSenderId: "your-sender-id",
-        appId: "your-app-id"
-    };
+    // 로컬 firebase-config.js 파일을 먼저 시도, 실패하면 데모 모드
+    function loadFirebaseConfig() {
+        return new Promise((resolve) => {
+            const script = document.createElement('script');
+            script.src = 'js/firebase-config.js';
+            script.onload = () => {
+                console.log("✅ 로컬 Firebase 설정 로드됨");
+                resolve(true);
+            };
+            script.onerror = () => {
+                console.log("⚠️ 로컬 Firebase 설정 없음 - 데모 모드 사용");
+                // 데모용 설정
+                window.firebaseConfig = {
+                    apiKey: "your-api-key-here",
+                    authDomain: "your-project-id.firebaseapp.com", 
+                    projectId: "your-project-id",
+                    storageBucket: "your-project-id.firebasestorage.app",
+                    messagingSenderId: "your-sender-id",
+                    appId: "your-app-id"
+                };
+                resolve(false);
+            };
+            document.head.appendChild(script);
+        });
+    }
     
-    let db = null;
-    let isFirebaseEnabled = false;
-    
-    // Firebase 초기화 함수
-    function initializeFirebase() {
-        try {
-            console.log("🔥 Firebase 초기화 시도...");
-            
-            if (typeof firebase === 'undefined') {
-                throw new Error("Firebase SDK가 로드되지 않음");
-            }
-            
-            if (firebaseConfig.apiKey !== "your-api-key-here") {
-                firebase.initializeApp(firebaseConfig);
-                db = firebase.firestore();
-                isFirebaseEnabled = true;
-                
-                window.db = db;
-                window.isFirebaseEnabled = isFirebaseEnabled;
-                
-                console.log("✅ Firebase 연결됨 - 실시간 데이터베이스 사용");
-                console.log("📊 프로젝트:", firebaseConfig.projectId);
-            } else {
-                console.log("⚡ Firebase 미설정 - localStorage 사용 (데모 모드)");
-                console.log("🔥 로컬에서 사용하려면 firebase-config.js 파일을 설정하세요");
-            }
-        } catch (error) {
-            console.error("❌ Firebase 초기화 실패:", error);
-            console.log("⚡ localStorage 사용 (데모 모드)");
-            isFirebaseEnabled = false;
-            window.isFirebaseEnabled = false;
+    // Firebase 설정 로드 후 초기화
+    loadFirebaseConfig().then(() => {
+        // firebase-config.js가 로드되면 initializeFirebase() 함수가 실행됨
+        // 로드되지 않으면 여기서 직접 처리
+        if (!window.isFirebaseEnabled) {
+            console.log("⚡ Firebase 미설정 - localStorage 사용 (데모 모드)");
         }
-    }
-    
-    // 페이지 로드 후 Firebase 초기화
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', initializeFirebase);
-    } else {
-        initializeFirebase();
-    }
+    });
     </script>
     <script src="js/database.js"></script>
     <script src="js/main.js"></script>
