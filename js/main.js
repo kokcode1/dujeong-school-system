@@ -981,6 +981,7 @@ function showTabletInfo() {
 
 // 과학실 준비물 신청 폼
 function showScienceForm() {
+    const today = new Date().toISOString().split('T')[0];
     const content = document.querySelector('main');
     content.innerHTML = `
         <button onclick="goBack()" class="back-btn">← 돌아가기</button>
@@ -989,11 +990,11 @@ function showScienceForm() {
             <form id="scienceForm">
                 <div class="form-group">
                     <label for="requestDate">신청일:</label>
-                    <input type="date" id="requestDate" name="requestDate" required>
+                    <input type="date" id="requestDate" name="requestDate" min="${today}" required>
                 </div>
                 <div class="form-group">
                     <label for="needDate">필요일:</label>
-                    <input type="date" id="needDate" name="needDate" required>
+                    <input type="date" id="needDate" name="needDate" min="${today}" required>
                 </div>
                 <div class="form-group">
                     <label for="items">준비물 목록:</label>
@@ -1031,6 +1032,7 @@ function showScienceForm() {
 
 // 유지보수 신청 폼
 function showMaintenanceForm() {
+    const today = new Date().toISOString().split('T')[0];
     const content = document.querySelector('main');
     content.innerHTML = `
         <button onclick="goBack()" class="back-btn">← 돌아가기</button>
@@ -1039,7 +1041,7 @@ function showMaintenanceForm() {
             <form id="maintenanceForm">
                 <div class="form-group">
                     <label for="requestDate">신청일:</label>
-                    <input type="date" id="requestDate" name="requestDate" required>
+                    <input type="date" id="requestDate" name="requestDate" min="${today}" required>
                 </div>
                 <div class="form-group">
                     <label for="location">위치:</label>
@@ -1082,6 +1084,7 @@ function showMaintenanceForm() {
 
 // 토너 신청 폼
 function showTonerForm() {
+    const today = new Date().toISOString().split('T')[0];
     const content = document.querySelector('main');
     content.innerHTML = `
         <button onclick="goBack()" class="back-btn">← 돌아가기</button>
@@ -1090,7 +1093,7 @@ function showTonerForm() {
             <form id="tonerForm">
                 <div class="form-group">
                     <label for="requestDate">신청일:</label>
-                    <input type="date" id="requestDate" name="requestDate" required>
+                    <input type="date" id="requestDate" name="requestDate" min="${today}" required>
                 </div>
                 <div class="form-group">
                     <label for="printerModel">프린터 모델:</label>
