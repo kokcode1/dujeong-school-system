@@ -151,15 +151,26 @@
             };
             script.onerror = () => {
                 console.log("⚠️ 로컬 Firebase 설정 없음 - 데모 모드 사용");
-                // 데모용 설정
+                // 실제 Firebase 설정 (GitHub Pages용)
                 window.firebaseConfig = {
-                    apiKey: "your-api-key-here",
-                    authDomain: "your-project-id.firebaseapp.com", 
-                    projectId: "your-project-id",
-                    storageBucket: "your-project-id.firebasestorage.app",
-                    messagingSenderId: "your-sender-id",
-                    appId: "your-app-id"
+                    apiKey: "AIzaSyDuZCkvcLJIHNwReb2HBRh2kvQaOjdfsEQ",
+                    authDomain: "dujeong-dujeong.firebaseapp.com",
+                    projectId: "dujeong-dujeong",
+                    storageBucket: "dujeong-dujeong.firebasestorage.app",
+                    messagingSenderId: "1099110427861",
+                    appId: "1:1099110427861:web:1585e05befc3cc37c5065c"
                 };
+                
+                // Firebase 초기화 (GitHub Pages용)
+                try {
+                    firebase.initializeApp(window.firebaseConfig);
+                    window.db = firebase.firestore();
+                    window.isFirebaseEnabled = true;
+                    console.log("✅ Firebase 연결됨 - GitHub Pages");
+                } catch (error) {
+                    console.error("❌ Firebase 초기화 실패:", error);
+                    window.isFirebaseEnabled = false;
+                }
                 resolve(false);
             };
             document.head.appendChild(script);
