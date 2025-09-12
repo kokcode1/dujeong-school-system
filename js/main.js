@@ -1571,19 +1571,18 @@ function generateWeeklyScheduleTable() {
             date.setDate(currentWeekStart.getDate() + dayIndex);
             const dateStr = date.toISOString().split('T')[0];
             
-            // 과거 날짜 확인 (오늘 이전만 과거로 처리)
-            const today = new Date();
-            const todayStr = today.toISOString().split('T')[0];
-            const cellDate = new Date(dateStr);
-            const isPastDate = cellDate < today.setHours(0, 0, 0, 0);
+            // 과거 날짜 확인 (오늘은 예약 가능, 어제까지만 과거)
+            const todayStr = new Date().toISOString().split('T')[0];
+            const isPastDate = dateStr < todayStr;
             
             // 디버깅 로그 (첫 번째 셀에서만)
             if (dayIndex === 0 && periodIndex === 0) {
-                console.log('🗓️ 날짜 비교:', {
-                    dateStr,
-                    todayStr,
-                    isPastDate,
-                    comparison: `${dateStr} vs ${todayStr} = isPast: ${isPastDate}`
+                const realToday = new Date();
+                console.log('🗓️ 날짜 비교 최종:', {
+                    cellDate: dateStr,
+                    today: todayStr,
+                    isPastDate: isPastDate,
+                    comparison: `'${dateStr}' < '${todayStr}' = ${isPastDate}`
                 });
             }
             
