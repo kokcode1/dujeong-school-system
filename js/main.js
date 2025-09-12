@@ -1575,6 +1575,16 @@ function generateWeeklyScheduleTable() {
             const today = new Date().toISOString().split('T')[0];
             const isPastDate = dateStr < today;
             
+            // 디버깅 로그 (첫 번째 셀에서만)
+            if (dayIndex === 0 && periodIndex === 0) {
+                console.log('🗓️ 날짜 비교:', {
+                    dateStr,
+                    today,
+                    isPastDate,
+                    comparison: `${dateStr} < ${today} = ${dateStr < today}`
+                });
+            }
+            
             const cellStatus = getWeeklyCellStatus(day, period.name, dateStr);
             let cellClass = cellStatus.status;
             let cellData = cellStatus.grade ? `data-grade="${cellStatus.grade}"` : '';
