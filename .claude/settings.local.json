@@ -15,7 +15,10 @@
       "Read(/D:\\dujeong\\dujeong-school-system\\js/**)",
       "Read(/D:\\dujeong\\dujeong-school-system\\js/**)",
       "Read(/D:\\dujeong\\dujeong-school-system\\js/**)",
-      "Read(/D:\\dujeong\\dujeong-school-system\\js/**)"
+      "Read(/D:\\dujeong\\dujeong-school-system\\js/**)",
+      "Bash(node:*)",
+      "Bash(gh repo view:*)",
+      "Bash(git rm:*)"
     ],
     "deny": [],
     "ask": []
