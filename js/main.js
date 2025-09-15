@@ -179,6 +179,13 @@ async function loadFirebaseData() {
         }
         
         console.log('✅ Firebase 데이터 로드 완료');
+        
+        // 실시간 리스너 설정
+        setupRealtimeListeners();
+        
+        // 페이지 포커스 동기화 설정
+        db.setupPageFocusSync();
+        
     } catch (error) {
         console.error('❌ Firebase 데이터 로드 오류:', error);
     }
@@ -245,6 +252,37 @@ function setupRealtimeListeners() {
     
     console.log('✅ 실시간 데이터 동기화 활성화');
 }
+
+// Firestore에서 업데이트 시 호출되는 함수
+window.updateFromFirestore = function(collectionName) {
+    console.log(`🔄 UI 업데이트: ${collectionName}`);
+    
+    const db = getDbManager();
+    if (!db || !db.cache[collectionName]) return;
+    
+    const data = db.cache[collectionName];
+    
+    // requests 객체 업데이트
+    const requestType = collectionName.replace('Requests', '');
+    if (requestType === 'computerRoom') {
+        requests.computerRoom = data;
+    } else if (requestType === 'tabletRouter') {
+        requests.tabletRouter = data;
+    } else if (requestType === 'library') {
+        requests.library = data;
+    } else {
+        requests[requestType] = data;
+    }
+    
+    // UI 업데이트
+    if (document.getElementById('weeklyScheduleContainer')) {
+        updateWeeklySchedule();
+    }
+    updateAdminStats();
+    updateMainDashboard();
+    
+    console.log(`✅ UI 업데이트 완료: ${collectionName} (${data.length}개)`);
+};
 
 // 학년/반 버튼 설정
 function setupGradeClassButtons() {

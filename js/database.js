@@ -182,6 +182,90 @@ class DatabaseManager {
         }
     }
 
+    // 데이터 강제 새로고침
+    async forceRefresh(collectionName) {
+        console.log(`🔄 강제 새로고침: ${collectionName}`);
+        try {
+            if (this.isFirebaseEnabled && this.db) {
+                // 캐시 초기화 후 재조회
+                delete this.cache[collectionName];
+                const documents = await this.getDocuments(collectionName);
+                console.log(`✅ 강제 새로고침 완료: ${collectionName} (${documents.length}개)`);
+                return documents;
+            } else {
+                // localStorage 모드에서는 단순히 재조회
+                return await this.getDocuments(collectionName);
+            }
+        } catch (error) {
+            console.error('강제 새로고침 오류:', error);
+            return [];
+        }
+    }
+
+    // 페이지 포커스 시 데이터 동기화 (비용 최적화)
+    setupPageFocusSync() {
+        if (!this.isFirebaseEnabled) return;
+        
+        let isHidden = false;
+        let lastSyncTime = Date.now();
+        const SYNC_COOLDOWN = 60000; // 60초 쿨다운 (더 보수적)
+        
+        // 페이지 가시성 변경 감지
+        document.addEventListener('visibilitychange', () => {
+            if (document.hidden) {
+                isHidden = true;
+                console.log('📱 페이지가 백그라운드로 이동');
+            } else if (isHidden) {
+                isHidden = false;
+                const now = Date.now();
+                
+                // 쿨다운 시간 체크 (30초 이내면 동기화 생략)
+                if (now - lastSyncTime < SYNC_COOLDOWN) {
+                    console.log('⏰ 동기화 쿨다운 중 - 생략');
+                    return;
+                }
+                
+                console.log('📱 페이지가 포그라운드로 복귀 - 데이터 동기화 시작');
+                lastSyncTime = now;
+                this.syncAllData();
+            }
+        });
+
+        // 윈도우 포커스 감지 (쿨다운 적용)
+        window.addEventListener('focus', () => {
+            if (isHidden) {
+                isHidden = false;
+                const now = Date.now();
+                
+                if (now - lastSyncTime < SYNC_COOLDOWN) {
+                    console.log('⏰ 동기화 쿨다운 중 - 생략');
+                    return;
+                }
+                
+                console.log('🔍 윈도우 포커스 복귀 - 데이터 동기화 시작');
+                lastSyncTime = now;
+                this.syncAllData();
+            }
+        });
+    }
+
+    // 모든 데이터 동기화
+    async syncAllData() {
+        const collections = ['computerRoomRequests', 'tabletRouterRequests', 'libraryRequests', 'scienceRequests', 'maintenanceRequests', 'tonerRequests'];
+        
+        for (const collection of collections) {
+            try {
+                await this.forceRefresh(collection);
+                // 전역 변수 업데이트 (main.js의 requests 객체)
+                if (window.requests && window.updateFromFirestore) {
+                    window.updateFromFirestore(collection);
+                }
+            } catch (error) {
+                console.error(`동기화 실패: ${collection}`, error);
+            }
+        }
+    }
+
     // localStorage 폴백
     addToLocalStorage(collectionName, data) {
         const existing = JSON.parse(localStorage.getItem(collectionName) || '[]');
