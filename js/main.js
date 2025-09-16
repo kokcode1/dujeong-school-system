@@ -2457,7 +2457,7 @@ function goBack() {
             
             return `
                 <div class="reservation-widget ${hasAnyReservation ? 'has-reservations' : ''}">
-                    <div class="widget-header">📅 2주간 예약 현황</div>
+                    <div class="widget-header">📅 나의 2주간 예약 현황(${currentUser.grade}학년 ${currentUser.class}반)</div>
                     <div class="facility-legend">
                         <div class="legend-item">
                             <div class="legend-color computer-color"></div>
