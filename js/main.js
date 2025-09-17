@@ -2578,9 +2578,13 @@ function goBack() {
                     <h3>📚 도서관 이용 예약</h3>
                     <p>도서관 이용 시간을 예약합니다</p>
                 </div>
-                <div class="menu-item disabled" onclick="showUpdateMessage('science-supplies')">
-                    <h3>🧪 과학실 준비물 신청</h3>
-                    <p>🔄 업데이트 예정</p>
+                <div class="menu-item" onclick="window.open('https://docs.google.com/spreadsheets/d/10hevdZ2pwIfNjpfnmVD275eH38b-sWBytjj8J6fWqzQ/edit?usp=sharing', '_blank')">
+                    <h3>🔧 2025 정보기기 유기보수 대장</h3>
+                    <p>정보기기 유기대장을 작성합니다.</p>
+                </div>
+                <div class="menu-item" onclick="window.open('https://docs.google.com/spreadsheets/d/1AbB2kzRzzTyBxDhkjyqcASnn5rhgnLzPD94KoHfCBpc/edit?usp=sharing', '_blank')">
+                    <h3>🖨️ 프린터 잉크 및 실물화상 수리대장</h3>
+                    <p>프린터 잉크 신청 및 실물화상기 수리대장을 작성합니다</p>
                 </div>
             </div>
         `;
