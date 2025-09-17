@@ -2584,7 +2584,7 @@ function goBack() {
                 </div>
                 <div class="menu-item" onclick="window.open('https://docs.google.com/spreadsheets/d/1AbB2kzRzzTyBxDhkjyqcASnn5rhgnLzPD94KoHfCBpc/edit?usp=sharing', '_blank')">
                     <h3>🖨️ 프린터 잉크 및 실물화상 수리대장</h3>
-                    <p>프린터 잉크 신청 및 실물화상기 수리대장을 작성합니다</p>
+                    <p>프린터 잉크 신청 및 실물화상기 수리대장을 작성합니다 - 신청 후 정보부장에게 메세지 보내주세요</p>
                 </div>
                 <div class="menu-item" onclick="window.open('https://www.youtube.com/@%EC%B2%9C%EC%95%88%EB%91%90%EC%A0%95%EC%B4%88%EB%93%B1%ED%95%99%EA%B5%90', '_blank')">
                     <h3>📺 아침조회 유튜브 두정초 홈페이지</h3>
