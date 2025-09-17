@@ -2579,12 +2579,16 @@ function goBack() {
                     <p>도서관 이용 시간을 예약합니다</p>
                 </div>
                 <div class="menu-item" onclick="window.open('https://docs.google.com/spreadsheets/d/10hevdZ2pwIfNjpfnmVD275eH38b-sWBytjj8J6fWqzQ/edit?usp=sharing', '_blank')">
-                    <h3>🔧 2025 정보기기 유기보수 대장</h3>
+                    <h3>🔧 정보기기 유지보수 대장</h3>
                     <p>정보기기 유기대장을 작성합니다.</p>
                 </div>
                 <div class="menu-item" onclick="window.open('https://docs.google.com/spreadsheets/d/1AbB2kzRzzTyBxDhkjyqcASnn5rhgnLzPD94KoHfCBpc/edit?usp=sharing', '_blank')">
                     <h3>🖨️ 프린터 잉크 및 실물화상 수리대장</h3>
                     <p>프린터 잉크 신청 및 실물화상기 수리대장을 작성합니다</p>
+                </div>
+                <div class="menu-item" onclick="window.open('https://www.youtube.com/@%EC%B2%9C%EC%95%88%EB%91%90%EC%A0%95%EC%B4%88%EB%93%B1%ED%95%99%EA%B5%90', '_blank')">
+                    <h3>📺 아침조회 유튜브 두정초 홈페이지</h3>
+                    <p>실시간 라이브 확인하세요</p>
                 </div>
             </div>
         `;
