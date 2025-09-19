@@ -2656,6 +2656,16 @@ function updateMainDashboard() {
 
         // 더 안정적인 업데이트를 위해 지연 시간 증가 및 확실한 데이터 동기화 대기
         setTimeout(() => {
+            // 디버깅: 업데이트 전 데이터 상태 확인
+            console.log('🔄 대시보드 업데이트 전 requests 상태:', {
+                computer: requests.computerRoom?.length || 0,
+                router: requests.tabletRouter?.length || 0,
+                library: requests.library?.length || 0,
+                sampleComputer: requests.computerRoom?.[0],
+                sampleRouter: requests.tabletRouter?.[0],
+                sampleLibrary: requests.library?.[0]
+            });
+
             // 전체 화면 다시 그리기 (안전한 방법)
             goBack();
         }, 200); // 지연 시간을 200ms로 증가
