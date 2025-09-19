@@ -616,21 +616,24 @@ function getUserReservationStatus(userInfo) {
     
     // 컴퓨터실 예약 확인 (이번주+다음주)
     console.log('🔍 전체 컴퓨터실 예약 데이터:', requests.computerRoom);
-    
+    console.log('🔍 전체 공유기 예약 데이터:', requests.tabletRouter);
+    console.log('🔍 전체 도서관 예약 데이터:', requests.library);
+
     const computerReservations = (requests.computerRoom || []).filter(req => {
         const matchesDate = req.useDate >= weekStartStr && req.useDate <= twoWeeksEndStr;
         const matchesUser = req.requester === userInfo.name;
-        const matchesGrade = req.requesterGrade == userInfo.grade;
-        const matchesClass = req.requesterClass == userInfo.class;
+        const matchesGrade = String(req.requesterGrade) === String(userInfo.grade);
+        const matchesClass = String(req.requesterClass) === String(userInfo.class);
         const matchesStatus = req.status === 'approved' || req.status === 'pending';
-        
-        console.log('🔍 예약 매칭 체크:', {
+
+        console.log('🔍 컴퓨터실 예약 매칭 체크:', {
             reservation: {
                 useDate: req.useDate,
                 requester: req.requester,
                 requesterGrade: req.requesterGrade,
                 requesterClass: req.requesterClass,
-                status: req.status
+                status: req.status,
+                useTime: req.useTime
             },
             currentUser: {
                 name: userInfo.name,
@@ -639,14 +642,14 @@ function getUserReservationStatus(userInfo) {
             },
             matches: {
                 date: `${req.useDate} 범위: ${weekStartStr} ~ ${twoWeeksEndStr} = ${matchesDate}`,
-                user: `${req.requester} === ${userInfo.name} = ${matchesUser}`,
+                user: `"${req.requester}" === "${userInfo.name}" = ${matchesUser}`,
                 grade: `${req.requesterGrade} == ${userInfo.grade} = ${matchesGrade}`,
                 class: `${req.requesterClass} == ${userInfo.class} = ${matchesClass}`,
                 status: `${req.status} in [approved,pending] = ${matchesStatus}`
             },
             finalMatch: matchesDate && matchesUser && matchesGrade && matchesClass && matchesStatus
         });
-        
+
         return matchesDate && matchesUser && matchesGrade && matchesClass && matchesStatus;
     });
     
@@ -654,21 +657,37 @@ function getUserReservationStatus(userInfo) {
     const routerReservations = (requests.tabletRouter || []).filter(req => {
         const matchesDate = req.useDate >= weekStartStr && req.useDate <= twoWeeksEndStr;
         const matchesUser = req.requester === userInfo.name;
-        const matchesGrade = req.requesterGrade == userInfo.grade;
-        const matchesClass = req.requesterClass == userInfo.class;
+        const matchesGrade = String(req.requesterGrade) === String(userInfo.grade);
+        const matchesClass = String(req.requesterClass) === String(userInfo.class);
         const matchesStatus = req.status === 'approved' || req.status === 'pending';
-        
+
+        if (requests.tabletRouter && requests.tabletRouter.length > 0) {
+            console.log('🔍 공유기 예약 매칭 체크:', {
+                reservation: req,
+                matches: { matchesDate, matchesUser, matchesGrade, matchesClass, matchesStatus },
+                finalMatch: matchesDate && matchesUser && matchesGrade && matchesClass && matchesStatus
+            });
+        }
+
         return matchesDate && matchesUser && matchesGrade && matchesClass && matchesStatus;
     });
-    
+
     // 도서관 예약 확인 (이번주+다음주)
     const libraryReservations = (requests.library || []).filter(req => {
         const matchesDate = req.useDate >= weekStartStr && req.useDate <= twoWeeksEndStr;
         const matchesUser = req.requester === userInfo.name;
-        const matchesGrade = req.requesterGrade == userInfo.grade;
-        const matchesClass = req.requesterClass == userInfo.class;
+        const matchesGrade = String(req.requesterGrade) === String(userInfo.grade);
+        const matchesClass = String(req.requesterClass) === String(userInfo.class);
         const matchesStatus = req.status === 'approved' || req.status === 'pending';
-        
+
+        if (requests.library && requests.library.length > 0) {
+            console.log('🔍 도서관 예약 매칭 체크:', {
+                reservation: req,
+                matches: { matchesDate, matchesUser, matchesGrade, matchesClass, matchesStatus },
+                finalMatch: matchesDate && matchesUser && matchesGrade && matchesClass && matchesStatus
+            });
+        }
+
         return matchesDate && matchesUser && matchesGrade && matchesClass && matchesStatus;
     });
     
@@ -2655,7 +2674,7 @@ function updateMainDashboard() {
         console.log('📊 메인 대시보드 예약 상태 업데이트 실행');
 
         // 더 안정적인 업데이트를 위해 지연 시간 증가 및 확실한 데이터 동기화 대기
-        setTimeout(() => {
+        setTimeout(async () => {
             // 디버깅: 업데이트 전 데이터 상태 확인
             console.log('🔄 대시보드 업데이트 전 requests 상태:', {
                 computer: requests.computerRoom?.length || 0,
@@ -2665,6 +2684,33 @@ function updateMainDashboard() {
                 sampleRouter: requests.tabletRouter?.[0],
                 sampleLibrary: requests.library?.[0]
             });
+
+            // Firebase에서 최신 데이터 강제 새로고침
+            const db = getDbManager();
+            if (db && db.isConnected()) {
+                console.log('🔄 Firebase에서 최신 데이터 강제 로드 중...');
+                try {
+                    const collections = ['computerRoomRequests', 'tabletRouterRequests', 'libraryRequests'];
+
+                    for (const collectionName of collections) {
+                        const data = await db.getDocuments(collectionName);
+                        console.log(`📥 ${collectionName} 최신 데이터:`, data.length, '개');
+
+                        // requests 객체 즉시 업데이트
+                        if (collectionName === 'computerRoomRequests') {
+                            requests.computerRoom = data;
+                        } else if (collectionName === 'tabletRouterRequests') {
+                            requests.tabletRouter = data;
+                        } else if (collectionName === 'libraryRequests') {
+                            requests.library = data;
+                        }
+                    }
+
+                    console.log('✅ 강제 데이터 새로고침 완료');
+                } catch (error) {
+                    console.error('❌ 강제 데이터 새로고침 실패:', error);
+                }
+            }
 
             // 전체 화면 다시 그리기 (안전한 방법)
             goBack();
