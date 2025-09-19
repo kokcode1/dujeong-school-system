@@ -2437,31 +2437,35 @@ function goBack() {
             
             // 오늘 날짜 기준으로 이번주 월요일 계산 (컴퓨터실 화면과 동일한 방식)
             const today = new Date();
-            const dashboardMonday = new Date(today);
-            dashboardMonday.setDate(today.getDate() - today.getDay() + 1);
-            
-            // ISO 주차 방식으로 정확한 월요일 계산 (컴퓨터실과 동일)
-            const thisYear = dashboardMonday.getFullYear();
-            const thisWeekNumber = getWeekNumber(dashboardMonday);
-            const thisMonday = getDateFromWeek(thisYear, thisWeekNumber);
-            
+            // getUserReservationStatus와 동일한 방식으로 월요일 계산
+            const thisMonday = new Date(today);
+            thisMonday.setDate(today.getDate() - today.getDay() + 1); // 이번주 월요일
+
             console.log('🔍 대시보드 날짜 계산:', {
                 today: today.toISOString().split('T')[0],
-                dashboardMonday: dashboardMonday.toISOString().split('T')[0],
-                thisMonday: thisMonday.toISOString().split('T')[0]
+                thisMonday: thisMonday.toISOString().split('T')[0],
+                todayDayOfWeek: today.getDay(),
+                thisMondayDayOfWeek: thisMonday.getDay()
             });
             
-            // 2주치 날짜 생성
+            // 2주치 날짜 생성 (더 안전한 날짜 계산)
             const weeks = [];
             for (let w = 0; w < 2; w++) {
-                const weekStart = new Date(thisMonday);
-                weekStart.setDate(thisMonday.getDate() + (w * 7));
-                
+                const weekStart = new Date(thisMonday.getTime()); // getTime()으로 정확한 복사
+                weekStart.setDate(weekStart.getDate() + (w * 7));
+
                 const weekDays = [];
                 for (let d = 0; d < 5; d++) { // 월~금
-                    const day = new Date(weekStart);
-                    day.setDate(weekStart.getDate() + d);
+                    const day = new Date(weekStart.getTime()); // getTime()으로 정확한 복사
+                    day.setDate(day.getDate() + d);
                     weekDays.push(day);
+
+                    // 디버깅: 날짜 생성 확인
+                    if (w === 0 && d < 3) { // 이번주 월,화,수만 로그
+                        const dayOfWeek = day.getDay();
+                        const dayNames = ['일', '월', '화', '수', '목', '금', '토'];
+                        console.log(`📅 날짜 생성 확인: w=${w}, d=${d} -> ${day.toISOString().split('T')[0]} (${dayNames[dayOfWeek]})`);
+                    }
                 }
                 weeks.push({
                     label: w === 0 ? '이번주' : '다음주',
