@@ -1549,8 +1549,21 @@ function generateWeeklyScheduleTable() {
                     { name: '6교시', time: '14:10-14:50' }
                 );
             }
+        } else if (currentFacility === 'router') {
+            // 공유기: 5교시 제외, 4교시까지만
+            if (grade <= 3) {
+                // 1,2,3학년
+                basePeriods.push(
+                    { name: '4교시', time: '12:30-13:10' }
+                );
+            } else {
+                // 4,5,6학년
+                basePeriods.push(
+                    { name: '4교시', time: '11:30-12:10' }
+                );
+            }
         } else {
-            // 컴퓨터실/공유기: 기존 로직
+            // 컴퓨터실: 기존 로직
             if (grade <= 3) {
                 // 1,2,3학년
                 basePeriods.push(
@@ -1613,6 +1626,42 @@ function generateWeeklyScheduleTable() {
                     </td>
                 `;
                 return;
+            }
+
+            // 컴퓨터실: 요일별 사용 불가 시간 (저학년/고학년 시간표 반영)
+            if (currentFacility === 'computer') {
+                const isBlockedTime = (() => {
+                    // 저학년 (1-3학년): 월,화,목은 5교시까지 / 수,금은 4교시까지
+                    if (currentUser.grade <= 3) {
+                        // 수, 금: 5교시 막기
+                        if ((day === '수' || day === '금') && period.name === '5교시') {
+                            return true;
+                        }
+                    }
+                    // 고학년 (4-6학년): 월,화,목은 5교시까지 / 수,금은 4교시까지
+                    else {
+                        // 수, 금: 5,6교시 막기
+                        if ((day === '수' || day === '금') && (period.name === '5교시' || period.name === '6교시')) {
+                            return true;
+                        }
+                        // 월, 화, 목: 6교시 막기
+                        if ((day === '월' || day === '화' || day === '목') && period.name === '6교시') {
+                            return true;
+                        }
+                    }
+                    return false;
+                })();
+
+                if (isBlockedTime) {
+                    tableHTML += `
+                        <td>
+                            <button class="schedule-cell disabled">
+                                사용불가
+                            </button>
+                        </td>
+                    `;
+                    return;
+                }
             }
             
             const date = new Date(currentWeekStart);
@@ -1886,28 +1935,72 @@ function updateSchedule() {
             { period: '2교시', time: currentFacility === 'library' ? '09:30-10:20' : '09:40-10:20' },
             { period: '3교시', time: '10:40-11:20' }
         ];
-        
-        // 4-6교시는 학년별로 다름
-        if (grade <= 3) {
-            // 1,2,3학년
-            baseSlots.push(
-                { period: '4교시', time: '12:30-13:10' },
-                { period: '5교시', time: '13:20-14:00' }
-            );
+
+        // 4-6교시는 학년별/시설별로 다름
+        if (currentFacility === 'router') {
+            // 공유기: 5교시 제외, 4교시까지만
+            if (grade <= 3) {
+                // 1,2,3학년
+                baseSlots.push(
+                    { period: '4교시', time: '12:30-13:10' }
+                );
+            } else {
+                // 4,5,6학년
+                baseSlots.push(
+                    { period: '4교시', time: '11:30-12:10' }
+                );
+            }
         } else {
-            // 4,5,6학년
-            baseSlots.push(
-                { period: '4교시', time: '11:30-12:10' },
-                { period: '5교시', time: '13:20-14:00' },
-                { period: '6교시', time: '14:10-14:50' }
-            );
+            // 컴퓨터실/도서관
+            if (grade <= 3) {
+                // 1,2,3학년
+                baseSlots.push(
+                    { period: '4교시', time: '12:30-13:10' },
+                    { period: '5교시', time: '13:20-14:00' }
+                );
+            } else {
+                // 4,5,6학년
+                baseSlots.push(
+                    { period: '4교시', time: '11:30-12:10' },
+                    { period: '5교시', time: '13:20-14:00' },
+                    { period: '6교시', time: '14:10-14:50' }
+                );
+            }
         }
-        
+
         // 컴퓨터실: 수요일은 6교시 제외
         if (currentFacility === 'computer' && dayOfWeek === 3 && grade > 3) { // 수요일(3)이고 4-6학년인 경우
             return baseSlots.slice(0, 5); // 6교시 제거
         }
-        
+
+        // 컴퓨터실: 요일별 사용 불가 시간 필터링
+        if (currentFacility === 'computer') {
+            const dayNames = ['일', '월', '화', '수', '목', '금', '토'];
+            const day = dayNames[dayOfWeek];
+
+            return baseSlots.filter(slot => {
+                // 저학년 (1-3학년): 월,화,목은 5교시까지 / 수,금은 4교시까지
+                if (grade <= 3) {
+                    // 수, 금: 5교시 막기
+                    if ((day === '수' || day === '금') && slot.period === '5교시') {
+                        return false;
+                    }
+                }
+                // 고학년 (4-6학년): 월,화,목은 5교시까지 / 수,금은 4교시까지
+                else {
+                    // 수, 금: 5,6교시 막기
+                    if ((day === '수' || day === '금') && (slot.period === '5교시' || slot.period === '6교시')) {
+                        return false;
+                    }
+                    // 월, 화, 목: 6교시 막기
+                    if ((day === '월' || day === '화' || day === '목') && slot.period === '6교시') {
+                        return false;
+                    }
+                }
+                return true;
+            });
+        }
+
         // 도서관: 정확한 4교시 시간 적용
         if (currentFacility === 'library') {
             if (grade <= 3) {
@@ -1922,7 +2015,7 @@ function updateSchedule() {
                 baseSlots.push({ period: '6교시', time: '14:10-14:50' });
             }
         }
-        
+
         return baseSlots;
     }
     
@@ -2225,7 +2318,42 @@ async function confirmReservation() {
         alert('선택된 시간이 없습니다.');
         return;
     }
-    
+
+    // 컴퓨터실 요일별 사용 불가 시간 검증
+    if (currentFacility === 'computer') {
+        const date = new Date(selectedSlot.date);
+        const dayOfWeek = date.getDay();
+        const dayNames = ['일', '월', '화', '수', '목', '금', '토'];
+        const day = dayNames[dayOfWeek];
+        const period = selectedSlot.period;
+
+        let isBlockedTime = false;
+
+        // 저학년 (1-3학년): 월,화,목은 5교시까지 / 수,금은 4교시까지
+        if (currentUser.grade <= 3) {
+            // 수, 금: 5교시 막기
+            if ((day === '수' || day === '금') && period === '5교시') {
+                isBlockedTime = true;
+            }
+        }
+        // 고학년 (4-6학년): 월,화,목은 5교시까지 / 수,금은 4교시까지
+        else {
+            // 수, 금: 5,6교시 막기
+            if ((day === '수' || day === '금') && (period === '5교시' || period === '6교시')) {
+                isBlockedTime = true;
+            }
+            // 월, 화, 목: 6교시 막기
+            if ((day === '월' || day === '화' || day === '목') && period === '6교시') {
+                isBlockedTime = true;
+            }
+        }
+
+        if (isBlockedTime) {
+            alert('⚠️ 컴퓨터실 사용 불가 시간입니다.\n\n해당 시간에는 컴퓨터실을 사용할 수 없습니다.');
+            return;
+        }
+    }
+
     // 중복 예약 검사
     const duplicateCheck = checkDuplicateReservation(selectedSlot.date, selectedSlot.period);
     if (duplicateCheck.isDuplicate) {
